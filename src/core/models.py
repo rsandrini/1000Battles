@@ -27,11 +27,29 @@ class Config(models.Model):
     def __unicode__(self):
         return self.name
 
+
+class Item(models.Model):
+    name = models.CharField(u'Name', max_length=250)
+    type_item = models.CharField(u'Type Item', max_length=100)
+    element = models.CharField(u'Element', max_length=1, choices=ELEMENT_CHOICES)
+    attribute = models.CharField(u'Attribute', max_length=100)
+    xpRequired = models.FloatField(u'Xp Attribute')
+    #user = models.ForeignKey(UserGame, verbose_name="UserItem")
+
+    def __unicode__(self):
+        return self.name
+
+
 class UserGame(models.Model):
     name = models.CharField(u'Name', max_length=200)
     reputation = models.FloatField(u'Reputation')
     hp = models.FloatField(u'HP')
     xp = models.FloatField(u'Xp')
+    chest = models.ForeignKey(Item, related_name="ChestItem", blank=True, null=True)
+    leg =  models.ForeignKey(Item, related_name="LegItem", blank=True, null=True)
+    arm = models.ForeignKey(Item, related_name="ArmItem", blank=True, null=True)
+    head =  models.ForeignKey(Item, related_name="HeadItem", blank=True, null=True)
+    items = models.ManyToManyField(Item)
 
     def __unicode__(self):
         return self.name
@@ -44,17 +62,6 @@ class Friend(models.Model):
     def __unicode__(self):
         #return "'%s' amigo de '%s' " % (self.user.name, self.friend.name)
         return self.friend.name
-
-class Item(models.Model):
-    name = models.CharField(u'Name', max_length=250)
-    type_item = models.CharField(u'Type Item', max_length=100)
-    element = models.CharField(u'Element', max_length=1, choices=ELEMENT_CHOICES)
-    attribute = models.CharField(u'Attribute', max_length=100)
-    xpRequired = models.FloatField(u'Xp Attribute')
-    user = models.ForeignKey(UserGame, verbose_name="UserItem")
-
-    def __unicode__(self):
-        return self.name
 
 
 class RequisitionBattle(models.Model):
@@ -86,3 +93,9 @@ class LogBattle(models.Model):
 
     def __unicode__(self):
         return self.player
+
+
+class Notification(models.Model):
+    message = models.CharField(u'Message', max_length=500)
+    datetime = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(UserGame, related_name=u'UserGame')

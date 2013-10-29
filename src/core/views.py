@@ -12,9 +12,13 @@ class IndexView(View):
         return HttpResponse(json.dumps("TESTE"), mimetype="application/json")
 
 
-class Login(View):
+class LoginView(View):
     def get(self, *args, **kwargs):
         return HttpResponse(json.dumps("OK"), mimetype="application/json")
+
+
+class RegisterView(View):
+    pass
 
 
 class DashboardView(View):
@@ -29,6 +33,7 @@ class DashboardView(View):
             error.append(ex.message)
 
         data = []
+        data.append(user)
         data.append(itens)
         data.append(friends)
 
@@ -38,9 +43,36 @@ class DashboardView(View):
             return HttpResponse(json.dumps(data), mymetype="aplication/json")
 
 
-class BattlesView(View):
+class BattleView(View):
+    pass
+
+
+'''
+   Accept or decline battle requisition
+'''
+class ConfirmBattleView(View):
+    pass
+
+
+class ShowBattleView(View):
+    pass
+
+
+class ShowAllItensView(View):
+    pass
+
+
+class ShowMyItensView(View):
+    pass
+
+
+class ShowRankingView(View):
     pass
 
 
 class FriendsView(View):
+    pass
+
+
+class ShowEnemyView(View):
     pass
