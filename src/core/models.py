@@ -17,6 +17,17 @@ STATUS_CHOICES = (
     (STATUS_CANCELED, "Canceled")
 )
 
+
+ATTACK_KICK = "K"
+ATTACK_PUNCH = "P"
+ATTACK_HALTER = "H"
+ATTACK_CHOICES = (
+    (ATTACK_KICK, "Kick"),
+    (ATTACK_PUNCH, "Punch"),
+    (ATTACK_HALTER, "Halter")
+)
+
+
 # Create your models here.
 class Config(models.Model):
     xpBattleWinner = models.FloatField(u'Xp Battle Winner')
@@ -49,7 +60,7 @@ class UserGame(models.Model):
     leg =  models.ForeignKey(Item, related_name="LegItem", blank=True, null=True)
     arm = models.ForeignKey(Item, related_name="ArmItem", blank=True, null=True)
     head =  models.ForeignKey(Item, related_name="HeadItem", blank=True, null=True)
-    items = models.ManyToManyField(Item)
+    items = models.ManyToManyField(Item, blank=True, null=True)
 
     def __unicode__(self):
         return self.name
@@ -74,9 +85,9 @@ class RequisitionBattle(models.Model):
 
 
 class Battle(models.Model):
-    winner = models.ForeignKey(UserGame, verbose_name="Winner")
+    winner = models.CharField(u'Winner', max_length=50)
     numberOfRounds = models.FloatField(u'Rounds')
-    requisitionBattle = models.ForeignKey(RequisitionBattle, verbose_name="RequisitionBattle")
+    requisitionBattle = models.ForeignKey(RequisitionBattle, related_name="RequisitionBattle")
 
     def __unicode__(self):
         return self.winner
@@ -84,11 +95,11 @@ class Battle(models.Model):
 
 class LogBattle(models.Model):
     order = models.FloatField(u'Order')
-    player = models.ForeignKey(UserGame, verbose_name="Player")
-    typeAttack = models.CharField(u'Type Attack', max_length=50)
+    player = models.CharField(u'Player', max_length=50)
+    typeAttack = models.CharField(u'Type Attack', max_length=1, choices=ATTACK_CHOICES)
     hit = models.BooleanField(u'Hit')
     damage = models.FloatField(u'Damage')
-    battle = models.ForeignKey(Battle, verbose_name="Battle")
+    battle = models.ForeignKey(Battle, related_name="Battle")
 
 
     def __unicode__(self):
