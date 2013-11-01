@@ -44,7 +44,7 @@ class Item(models.Model):
     type_item = models.CharField(u'Type Item', max_length=100)
     element = models.CharField(u'Element', max_length=1, choices=ELEMENT_CHOICES)
     attribute = models.CharField(u'Attribute', max_length=100)
-    xpRequired = models.FloatField(u'Xp Attribute')
+    xpRequired = models.FloatField(u'Xp Required')
     #user = models.ForeignKey(UserGame, verbose_name="UserItem")
 
     def __unicode__(self):
