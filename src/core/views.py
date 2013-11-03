@@ -46,7 +46,10 @@ class RegisterView(View):
         try:
             error = []
             data=json.loads(self.request.body)
-            if UserLogin.objects.filter(Q(username=data['username']) | Q(email=data['email'])).count() == 0:
+            if (data['username'] == "" or data['email'] == ""
+                and data['password'] == "" and data['name'] == ""):
+                error.append("Dados incompletos")
+            elif UserLogin.objects.filter(Q(username=data['username']) | Q(email=data['email'])).count() == 0:
                 ug = UserGame(name=data['name'])
                 ug.save()
 
@@ -63,6 +66,9 @@ class RegisterView(View):
             return HttpResponse(json.dumps("registred"), mimetype="aplication/json")
 
 
+'''
+    curl -X GET -H "Content-Type: application/json" http://localhost:8000/dashboard/1/
+'''
 class DashboardView(View):
     def get(self, *args, **kwargs):
         idUser = self.kwargs['id']
@@ -85,10 +91,8 @@ class DashboardView(View):
             return HttpResponse(data ,mimetype="aplication/json")
 
 '''
-{"friends": "[{\"friend\": \"\\\"XxXAssassinoXxX\\\"\"}, {\"friend\": \"\\\"HueHueHue\\\"\"}, {\"friend\": \"\\\"PowerDieMotherFuck\\\"\"}]", "user": "{\"name\": \"Matador\", \"head_id\": \"None\", \"hp\": 10.0, \"_state\": {\"adding\": false, \"db\": \"default\"}, \"arm_id\": \"None\", \"leg_id\": \"None\", \"reputation\": 0.0, \"chest_id\": \"None\", \"xp\": 0.0, \"id\": 1}"}
+    curl -X GET -H "Content-Type: application/json" http://localhost:8000/battles/1/
 '''
-
-
 class BattleView(View):
     def get(self, *args, **kwargs):
         idUser = self.kwargs['id']
@@ -111,13 +115,16 @@ class BattleView(View):
             return HttpResponse(data ,mimetype="aplication/json")
 
 
+'''
+  curl -X GET -H "Content-Type: application/json" http://localhost:8000/battles_requisition/1/
+'''
 class ShowBattlesRequisitionView(View):
     def get(self, *args, **kwargs):
         idUser = self.kwargs['id']
         error = []
         try:
             user = UserGame.objects.get(pk=idUser)
-            reBattles = RequisitionBattle.objects.filter(Q(challenging=user) | Q(challenged=user))
+            reBattles = RequisitionBattle.objects.filter(Q(challenging=user) | Q(challenged=user), status="W")
             _battles = []
             for i in reBattles:
                 _battles.append(dict(battle=json_repr(i)))
@@ -133,7 +140,7 @@ class ShowBattlesRequisitionView(View):
             return HttpResponse(data ,mimetype="aplication/json")
 
 '''
-    curl -X POST -H "Content-Type: application/json" -d '{"challenging":1, "challenged":2}' http://localhost:8000/battle_requisition/
+    curl -X POST -H "Content-Type: application/json" -d '{"challenging":1, "challenged":2}' http://localhost:8000/battle_challenge/
 '''
 class BattleRequisitionView(View):
     def post(self, *args, **kwargs):
@@ -180,9 +187,12 @@ class BattleRequisitionView(View):
                                     challenging_head=challenging_head,
                                     status="W")
             rb.save()
+            msg = "Você foi desafiado para um combate!"
+            create_notification(msg, challenged)
+
         except:
             raise
-        return HttpResponse('')
+        return HttpResponse('Challenged')
 
 '''
     Accept or decline battle requisition
@@ -200,10 +210,10 @@ class BattleRequisitionConfirmView(View):
             req.save()
         '''
             Randomiza quem comeca
-            Cria uma lista da ordem dos 3 ataques que fará no inicio
-            Comeca atacando com primeiro da lista e guarda o resultado
+            Cria uma lista da ordem dos 3 ataques que fará no inicio (TODO)
+            Comeca atacando com primeiro da lista e guarda o resultado (TODO)
             - Mesma coisa o inimigo
-            Ao final dos três ataques usa o mais efetivo
+            Ao final dos três ataques usa o mais efetivo (TODO)
             Se hp <=0 fim da batalha
         '''
 
@@ -276,6 +286,8 @@ class BattleRequisitionConfirmView(View):
         try:
             reBattle = RequisitionBattle.objects.get(pk=self.kwargs['id_requisition'], status="W")
             data = json.dumps({"requisition": json_repr(reBattle) })
+        except RequisitionBattle.DoesNotExist:
+            error.append("Nao foi possivel recuperar esta requisição pois a batalha já foi aceita")
         except:
             raise
             error.append(sys.exc_info()[0])
@@ -306,6 +318,9 @@ class BattleRequisitionConfirmView(View):
         return HttpResponse('OK')
 
 
+'''
+    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/battle/1/
+'''
 class ShowBattleView(View):
     def get(self, *args, **kwargs):
         error = []
@@ -330,7 +345,9 @@ class ShowBattleView(View):
             return HttpResponse(data ,mimetype="aplication/json")
 
 
-
+'''
+    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/all_itens/
+'''
 class ShowAllItensView(View):
     def get(self, *args, **kwargs):
         error = []
@@ -352,7 +369,9 @@ class ShowAllItensView(View):
             return HttpResponse(data ,mimetype="aplication/json")
 
 
-
+'''
+    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/my_itens/1/
+'''
 class ShowMyItensView(View):
     def get(self, *args, **kwargs):
         error = []
@@ -375,6 +394,9 @@ class ShowMyItensView(View):
             return HttpResponse(data ,mimetype="aplication/json")
 
 
+'''
+    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/ranking/
+'''
 class ShowRankingView(View):
     def get(self, *args, **kwargs):
         error = []
@@ -396,6 +418,9 @@ class ShowRankingView(View):
             return HttpResponse(data ,mimetype="aplication/json")
 
 
+'''
+    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/ranking/
+'''
 class FriendsView(View):
     def get(self, *args, **kwargs):
         idUser = self.kwargs['id']
@@ -416,6 +441,9 @@ class FriendsView(View):
             return HttpResponse(data ,mimetype="aplication/json")
 
 
+'''
+    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/player/2/
+'''
 class ShowEnemyView(View):
     def get(self, *args, **kwargs):
         idUser = self.kwargs['id']

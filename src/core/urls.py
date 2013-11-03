@@ -15,7 +15,7 @@ urlpatterns = patterns('',
     # Confirm requisition for battle
     url(r'^battle_requisition_confirm/(?P<id_requisition>\d+)/$', BattleRequisitionConfirmView.as_view(), name="battleRequisitionConfirm"),
     # send a challenge
-    url(r'^battle_requisition/$', BattleRequisitionView.as_view(), name="battleRequisition"),
+    url(r'^battle_challenge/$', BattleRequisitionView.as_view(), name="battleRequisition"),
     # show a battle
     url(r'^battle/(?P<id_battle>\d+)/$', ShowBattleView.as_view(), name="battleShow"),
     url(r'^all_itens/$', ShowAllItensView.as_view(), name="itensShow"),
