@@ -35,9 +35,6 @@ class Config(models.Model):
     reputationBattleWinner = models.FloatField(u'Reputation Battle Winner')
     reputationBattleLoser = models.FloatField(u'Reputation Battle Loser')
 
-    def __unicode__(self):
-        return self.name
-
 
 class Item(models.Model):
     name = models.CharField(u'Name', max_length=250)
@@ -53,9 +50,9 @@ class Item(models.Model):
 
 class UserGame(models.Model):
     name = models.CharField(u'Name', max_length=200)
-    reputation = models.FloatField(u'Reputation')
-    hp = models.FloatField(u'HP')
-    xp = models.FloatField(u'Xp')
+    reputation = models.FloatField(u'Reputation', default=100)
+    hp = models.FloatField(u'HP', default=10)
+    xp = models.FloatField(u'XP', default=0)
     chest = models.ForeignKey(Item, related_name="ChestItem", blank=True, null=True)
     leg =  models.ForeignKey(Item, related_name="LegItem", blank=True, null=True)
     arm = models.ForeignKey(Item, related_name="ArmItem", blank=True, null=True)
@@ -64,6 +61,14 @@ class UserGame(models.Model):
 
     def __unicode__(self):
         return self.name
+
+
+class UserLogin(models.Model):
+    username = models.CharField(u'UserName', max_length=50)
+    password = models.CharField(u'Password', max_length=100)
+    email = models.EmailField(u'Email', max_length=75)
+    userGame = models.ForeignKey(UserGame, related_name='UserGameChar')
+    join = models.DateTimeField(auto_now=True)
 
 
 class Friend(models.Model):
@@ -79,13 +84,25 @@ class RequisitionBattle(models.Model):
     challenging = models.ForeignKey(UserGame, related_name=u"Challenging")
     challenged = models.ForeignKey(UserGame, related_name=u"Challenged")
     status = models.CharField(u'Status', max_length=1, choices=STATUS_CHOICES)
+    datetime = models.DateTimeField(auto_now=True)
+
+    challenging_chest = models.ForeignKey(Item, related_name="ChestItem1", blank=True, null=True)
+    challenging_leg =  models.ForeignKey(Item, related_name="LegItem1", blank=True, null=True)
+    challenging_arm = models.ForeignKey(Item, related_name="ArmItem1", blank=True, null=True)
+    challenging_head =  models.ForeignKey(Item, related_name="HeadItem1", blank=True, null=True)
+
+
+    challenged_chest = models.ForeignKey(Item, related_name="ChestItem2", blank=True, null=True)
+    challenged_leg =  models.ForeignKey(Item, related_name="LegItem2", blank=True, null=True)
+    challenged_arm = models.ForeignKey(Item, related_name="ArmItem2", blank=True, null=True)
+    challenged_head =  models.ForeignKey(Item, related_name="HeadItem2", blank=True, null=True)
 
     def __unicode__(self):
         return "%s vs %s" % (self.challenging, self.challenged)
 
 
 class Battle(models.Model):
-    winner = models.CharField(u'Winner', max_length=50)
+    winner = models.CharField(u'Winner', max_length=50, null=True, blank=True)
     numberOfRounds = models.FloatField(u'Rounds')
     requisitionBattle = models.ForeignKey(RequisitionBattle, related_name="RequisitionBattle")
 
@@ -101,7 +118,6 @@ class LogBattle(models.Model):
     damage = models.FloatField(u'Damage')
     battle = models.ForeignKey(Battle, related_name="Battle")
 
-
     def __unicode__(self):
         return self.player
 
@@ -110,3 +126,6 @@ class Notification(models.Model):
     message = models.CharField(u'Message', max_length=500)
     datetime = models.DateTimeField(auto_now=True)
     user = models.ForeignKey(UserGame, related_name=u'UserGame')
+
+    def __unicode__(self):
+        return self.message

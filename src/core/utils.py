@@ -14,6 +14,8 @@ def json_repr(obj):
             return obj
         elif isinstance(obj, dict):
             obj = obj.copy()
+            del obj['_state']
+
             for key in obj:
                 obj[key] = serialize(obj[key])
             return obj

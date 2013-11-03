@@ -7,6 +7,8 @@ from django.http import HttpResponse
 import sys
 from core.utils import *
 from django.db.models import Q
+import random
+
 
 class IndexView(View):
     def get(self, *args, **kwargs):
@@ -14,13 +16,51 @@ class IndexView(View):
         return HttpResponse(json.dumps("TESTE"), mimetype="application/json")
 
 
+'''
+    curl -X POST -H "Content-Type: application/json" -d '{"username":"", "password":""}' http://localhost:8000/login
+'''
 class LoginView(View):
     def get(self, *args, **kwargs):
         return HttpResponse(json.dumps("OK"), mimetype="application/json")
 
+    def post(self, *args, **kwargs):
+        try:
+            error = []
+            data = json.loads(self.request.body)
+            if UserLogin.objects.filter(username=data['username'], password=data['password']).count() == 1:
+                ul = UserLogin.objects.get(username=data['username'], password=data['password'])
+                return HttpResponse(json.dumps('logged'), mimetype='aplication/json')
+            else:
+                error.append("Login ou senha incorretos")
+                return HttpResponse(json.dumps(error), mimetype='aplication/json')
 
+        except:
+            raise
+
+
+'''
+    curl -X POST -H "Content-Type: application/json" -d '{"username":"", "password":"", "email":"", "name":""}' http://localhost:8000/registration/
+'''
 class RegisterView(View):
-    pass
+    def post(self, *args, **kwargs):
+        try:
+            error = []
+            data=json.loads(self.request.body)
+            if UserLogin.objects.filter(Q(username=data['username']) | Q(email=data['email'])).count() == 0:
+                ug = UserGame(name=data['name'])
+                ug.save()
+
+                ul = UserLogin(username=data['username'],
+                    password=data['password'], email=data['email'], userGame=ug)
+                ul.save()
+            else:
+                error.append("Usuario ou email ja registrados")
+        except:
+            raise
+        if error:
+            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+        else:
+            return HttpResponse(json.dumps("registred"), mimetype="aplication/json")
 
 
 class DashboardView(View):
@@ -71,7 +111,7 @@ class BattleView(View):
             return HttpResponse(data ,mimetype="aplication/json")
 
 
-class BattlesRequisitionView(View):
+class ShowBattlesRequisitionView(View):
     def get(self, *args, **kwargs):
         idUser = self.kwargs['id']
         error = []
@@ -92,8 +132,145 @@ class BattlesRequisitionView(View):
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
+'''
+    curl -X POST -H "Content-Type: application/json" -d '{"challenging":1, "challenged":2}' http://localhost:8000/battle_requisition/
+'''
+class BattleRequisitionView(View):
+    def post(self, *args, **kwargs):
+        try:
+            data=json.loads(self.request.body)
+            print data
+            challenging = UserGame.objects.get(pk=data['challenging'])
+            challenged = UserGame.objects.get(pk=data['challenged'])
 
+            challenging_chest, challenging_leg, challenging_head, challenging_arm = None, None, None, None
+
+            try:
+                if data['challenging_chest']:
+                    challenging_chest = UserGame.objects.get(
+                                            pk=data['challenging_chest'])
+            except KeyError:
+                pass
+
+            try:
+                if data['challenging_leg']:
+                    challenging_leg = UserGame.objects.get(
+                                        pk=data['challenging_leg'])
+            except KeyError:
+                pass
+
+            try:
+                if data['challenging_arm']:
+                    challenging_arm = UserGame.objects.get(
+                                        pk=data['challenging_arm'])
+            except KeyError:
+                pass
+
+            try:
+                if data['challenging_head']:
+                    challenging_head = UserGame.objects.get(
+                                        pk=data['challenging_head'])
+            except KeyError:
+                pass
+
+            rb = RequisitionBattle(challenging=challenging, challenged=challenged,
+                                    challenging_chest=challenging_chest,
+                                    challenging_leg=challenging_leg,
+                                    challenging_arm=challenging_arm,
+                                    challenging_head=challenging_head,
+                                    status="W")
+            rb.save()
+        except:
+            raise
+        return HttpResponse('')
+
+'''
+    Accept or decline battle requisition
+
+    curl -X POST -H "Content-Type: application/json" -d '{"accept":"True"}' http://localhost:8000/battle_requisition_confirm/3/
+'''
 class BattleRequisitionConfirmView(View):
+
+    def process_battle(self, req):
+        print req
+        if not req.status == 'W':
+            return ""
+        else:
+            req.status = "F"
+            req.save()
+        '''
+            Randomiza quem comeca
+            Cria uma lista da ordem dos 3 ataques que fará no inicio
+            Comeca atacando com primeiro da lista e guarda o resultado
+            - Mesma coisa o inimigo
+            Ao final dos três ataques usa o mais efetivo
+            Se hp <=0 fim da batalha
+        '''
+
+        # Create a battle
+        _battle = Battle(numberOfRounds=0, requisitionBattle=req, winner="")
+        _battle.save()
+
+        _round =0
+        _cont = True
+        _attacker = None
+        _defender = None
+        _challenging_attackers = []
+        _challenged_attackes = []
+        _winner = ""
+
+
+        if random.choice('ab') == 'a':
+            _attacker = req.challenging
+            _defender = req.challenged
+        else:
+            _attacker = req.challenged
+            _defender = req.challenging
+
+        while (_cont):
+            _round += 1
+            _att = random.randint(0, 6)
+            _def = random.randint(0, 6)
+            _hit = False
+            _damage = 0
+
+            if _att > _def:
+                _damage = random.randint(0,6)
+                _defender.hp -= _damage
+                _hit = True
+
+            log_battle = LogBattle(order=_round, player=_attacker,
+                                    typeAttack="K", hit=_hit,
+                                    damage=_damage, battle=_battle)
+            log_battle.save()
+            config = Config.objects.get(pk=1)
+
+            if _defender.hp <= 0:
+                _cont = False
+                _winner = _attacker.name
+
+                winner = UserGame.objects.get(pk=_attacker.pk)
+                winner.reputation += config.reputationBattleWinner
+                winner.xp += config.xpBattleWinner
+                winner.save()
+
+                loser = UserGame.objects.get(pk=_defender.pk)
+                loser.reputation -= config.reputationBattleLoser
+                loser.xp += config.xpBattleLoser
+                loser.save()
+
+            else:
+                _attacker, _defender = _defender, _attacker # :D
+
+        _battle.winner = _winner
+        _battle.numberOfRounds = _round
+        _battle.save()
+
+        print "End battle"
+        msg = "Uma batalha aconteceu, veja o resultado!"
+        create_notification(msg, req.challenging)
+        create_notification(msg, req.challenged)
+
     def get(self, *args, **kwargs):
         error = []
         try:
@@ -108,29 +285,50 @@ class BattleRequisitionConfirmView(View):
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
-    '''
-    curl -X POST -H "Content-Type: application/json" -d '{"username":"xyz","password":"xyz"}' http://localhost:8000/battle_requisition_confirm/3/
-
-    {"accept":"True"}
-    '''
-
     def post(self, *args, **kwargs):
         try:
             data=json.loads(self.request.body)
+            req = RequisitionBattle.objects.get(pk=self.kwargs['id_requisition'])
+            if req.status == "W":
 
-            print data
+                if data['accept'] == 'true' or data['accept'] == 'True':
+                    print 'ACCEPT MOTHERFUCK!'
+                    self.process_battle(req)
+
+                else:
+                    req.status = "C"
+                    # Vai remover reputação ?
+                    req.save()
+                    msg = "O jogador %s nao aceitou sua solicitação de batalha", req.challenged
+                    create_notification(msg, req.challenging)
         except:
             raise
-        return HttpResponse('')
-'''
-   Accept or decline battle requisition
-'''
-class ConfirmBattleView(View):
-    pass
+        return HttpResponse('OK')
 
 
 class ShowBattleView(View):
-    pass
+    def get(self, *args, **kwargs):
+        error = []
+        try:
+            _battle = Battle.objects.get(pk=self.kwargs['id_battle'])
+            _req = RequisitionBattle.objects.get(pk=_battle.requisitionBattle.pk)
+
+            logs = LogBattle.objects.filter(battle=_battle).order_by('order')
+            _itens = []
+            for i in logs:
+                _itens.append(dict(log=json_repr(i)))
+
+            data = json.dumps({"battle":json_repr(_battle), "details":json_repr(_req), "log":_itens })
+
+        except:
+            raise
+            error.append(sys.exc_info()[0])
+
+        if error:
+            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+        else:
+            return HttpResponse(data ,mimetype="aplication/json")
+
 
 
 class ShowAllItensView(View):
@@ -238,3 +436,8 @@ class ShowEnemyView(View):
             return HttpResponse(data ,mimetype="aplication/json")
 
 
+
+def create_notification(_message, _to):
+    user = UserGame.objects.get(pk=_to.pk)
+    msg = Notification(message=_message, user=user)
+    msg.save()
