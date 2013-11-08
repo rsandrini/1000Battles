@@ -8,6 +8,7 @@ import sys
 from core.utils import *
 from django.db.models import Q
 import random
+from django.core.exceptions import ObjectDoesNotExist
 
 
 class IndexView(View):
@@ -419,7 +420,7 @@ class ShowRankingView(View):
 
 
 '''
-    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/ranking/
+    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/friends/1/
 '''
 class FriendsView(View):
     def get(self, *args, **kwargs):
@@ -439,6 +440,43 @@ class FriendsView(View):
             return HttpResponse(json.dumps(error), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
+
+    '''
+        curl -X POST -H "Content-Type: application/json" -d '{"friend":3, "action:"True""}' http://localhost:8000/friends/1/
+
+        { "friend":"ID", "action":"True" } / { "friend":"ID", "action":"False" }
+    '''
+    def post(self, *args, **kwargs):
+        error = []
+        try:
+            data=json.loads(self.request.body)
+            _friend = UserGame.objects.get(pk=data['friend'])
+            _user = UserGame.objects.get(pk=self.kwargs['id'])
+            add = data['action']
+            if add == "True" or add == "true":
+                if Friend.objects.filter(user=_user, friend=_friend).count() == 1:
+                    friend = Friend(user=_user, friend=_friend)
+                    friend.save()
+                else:
+                    error.append("Amigo ja existe")
+            else:
+                if Friend.objects.filter(user=_user, friend=_friend).count() == 1:
+                    friend_get = Friend.objects.get(friend=_friend.pk, user=_user.pk)
+                    friend_get.delete()
+                else:
+                    error.append("Amigo nao existe")
+
+            data = json.dumps({"response":"OK" })
+
+        except:
+            raise
+            error.append("Erro ao processar solicitacao")
+            pass
+
+        if error:
+            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+        else:
+           return HttpResponse(data ,mimetype="aplication/json")
 
 
 '''
@@ -463,6 +501,82 @@ class ShowEnemyView(View):
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
+class SetItemView(View):
+
+    '''
+        curl -X POST -H "Content-Type: application/json" -d '{"item":1, "action:"True""}' http://localhost:8000/setitem/1/
+    '''
+    def post(self, *args, **kwargs):
+        error = []
+        try:
+            data=json.loads(self.request.body)
+            _item = Item.objects.get(pk=data['item'])
+            _user = UserGame.objects.get(pk=self.kwargs['id'])
+            add = data['action']
+            if add == "True" or add == "true":
+                try:
+                    u= UserGame.objects.get(pk=_user.pk, items=_item.pk)
+                    _user_item = u.items.get(pk=_item.pk)
+                    if _user_item.type_item == "A":
+                        u.arm = _user_item
+                        u.save()
+                    elif  _user_item.type_item == "L":
+                        u.leg = _user_item
+                        u.save()
+                    elif _user_item.type_item == "H":
+                        u.head = _user_item
+                        u.save()
+                    elif _user_item.type_item == "C":
+                        u.chest = _user_item
+                        u.save()
+                    elif _user_item.type_item == "E":
+                        u.especial = _user_item
+                        u.save()
+                    else:
+                        error.append("Tipo do item incorreto")
+
+                #except DoesNotExit:
+                #    error.append("Item nao existe para este usuario")
+                except:
+                    raise
+            else:
+                try:
+                    u= UserGame.objects.get(pk=_user.pk, items=_item.pk)
+                    _user_item = u.items.get(pk=_item.pk)
+                    if _user_item.type_item == "A":
+                        u.arm = None
+                        u.save()
+                    elif  _user_item.type_item == "L":
+                        u.leg = None
+                        u.save()
+                    elif _user_item.type_item == "H":
+                        u.head = None
+                        u.save()
+                    elif _user_item.type_item == "C":
+                        u.chest = None
+                        u.save()
+                    elif _user_item.type_item == "E":
+                        u.especial = None
+                        u.save()
+                    else:
+                        error.append("Tipo do item incorreto")
+
+                #except DoesNotExit:
+                #    error.append("Item nao existe para este usuario")
+                except:
+                    raise
+
+            data = json.dumps({"response":"OK" })
+
+        except:
+            raise
+            error.append("Erro ao processar solicitacao")
+            pass
+
+        if error:
+            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+        else:
+           return HttpResponse(data ,mimetype="aplication/json")
 
 
 def create_notification(_message, _to):

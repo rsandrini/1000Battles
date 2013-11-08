@@ -1,13 +1,5 @@
 from django.db import models
 
-ELEMENT_WOOD = 'W'
-ELEMENT_IRON = 'I'
-ELEMENT_CHOICES = (
-    (ELEMENT_WOOD, 'Wood'),
-    (ELEMENT_IRON, 'Iron')
-)
-
-
 STATUS_WAITING = 'W'
 STATUS_FINISHED = 'F'
 STATUS_CANCELED = 'C'
@@ -28,6 +20,30 @@ ATTACK_CHOICES = (
 )
 
 
+TYPE_ARM = "A"
+TYPE_LEG = "L"
+TYPE_HEAD = "H"
+TYPE_CHEST = "C"
+TYPE_ESP = "E"
+TYPE_CHOICES = (
+    (TYPE_ARM, "Arm"),
+    (TYPE_LEG, "Leg"),
+    (TYPE_HEAD, "Head"),
+    (TYPE_CHEST, "Chest"),
+    (TYPE_ESP, "Especial")
+)
+
+ELEM_FIRE = "F"
+ELEM_AIR = "A"
+ELEM_WATER = "W"
+ELEM_EARTH = "E"
+ELEM_CHOICES = (
+    (ELEM_FIRE, "Fire"),
+    (ELEM_AIR, "Air"),
+    (ELEM_WATER, "Water"),
+    (ELEM_EARTH, "Earth")
+)
+
 # Create your models here.
 class Config(models.Model):
     xpBattleWinner = models.FloatField(u'Xp Battle Winner')
@@ -38,8 +54,8 @@ class Config(models.Model):
 
 class Item(models.Model):
     name = models.CharField(u'Name', max_length=250)
-    type_item = models.CharField(u'Type Item', max_length=100)
-    element = models.CharField(u'Element', max_length=1, choices=ELEMENT_CHOICES)
+    type_item = models.CharField(u'Type Item', max_length=1, choices=TYPE_CHOICES)
+    element = models.CharField(u'Element', max_length=1, choices=ELEM_CHOICES)
     attribute = models.CharField(u'Attribute', max_length=100)
     xpRequired = models.FloatField(u'Xp Required')
     #user = models.ForeignKey(UserGame, verbose_name="UserItem")
@@ -57,6 +73,7 @@ class UserGame(models.Model):
     leg =  models.ForeignKey(Item, related_name="LegItem", blank=True, null=True)
     arm = models.ForeignKey(Item, related_name="ArmItem", blank=True, null=True)
     head =  models.ForeignKey(Item, related_name="HeadItem", blank=True, null=True)
+    especial = models.ForeignKey(Item, related_name="EspecialItem", blank=True, null=True)
     items = models.ManyToManyField(Item, blank=True, null=True)
 
     def __unicode__(self):
@@ -90,12 +107,14 @@ class RequisitionBattle(models.Model):
     challenging_leg =  models.ForeignKey(Item, related_name="LegItem1", blank=True, null=True)
     challenging_arm = models.ForeignKey(Item, related_name="ArmItem1", blank=True, null=True)
     challenging_head =  models.ForeignKey(Item, related_name="HeadItem1", blank=True, null=True)
+    challenging_especial =  models.ForeignKey(Item, related_name="especialItem1", blank=True, null=True)
 
 
     challenged_chest = models.ForeignKey(Item, related_name="ChestItem2", blank=True, null=True)
     challenged_leg =  models.ForeignKey(Item, related_name="LegItem2", blank=True, null=True)
     challenged_arm = models.ForeignKey(Item, related_name="ArmItem2", blank=True, null=True)
     challenged_head =  models.ForeignKey(Item, related_name="HeadItem2", blank=True, null=True)
+    challenged_especial =  models.ForeignKey(Item, related_name="EspecialItem2", blank=True, null=True)
 
     def __unicode__(self):
         return "%s vs %s" % (self.challenging, self.challenged)
