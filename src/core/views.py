@@ -36,8 +36,7 @@ class LoginView(View):
                 return HttpResponse(json.dumps(error), mimetype='aplication/json')
 
         except:
-            raise
-
+            pass
 
 '''
     curl -X POST -H "Content-Type: application/json" -d '{"username":"", "password":"", "email":"", "name":""}' http://localhost:8000/registration/
@@ -60,7 +59,7 @@ class RegisterView(View):
             else:
                 error.append("Usuario ou email ja registrados")
         except:
-            raise
+            pass
         if error:
             return HttpResponse(json.dumps(error), mimetype="aplication/json")
         else:
@@ -83,7 +82,6 @@ class DashboardView(View):
             data = json.dumps({"user":_user, "friends":_friends })
 
         except:
-            raise
             error.append(sys.exc_info()[0])
 
         if error:
@@ -107,7 +105,6 @@ class BattleView(View):
 
             data = json.dumps({"battles":_battles })
         except:
-            raise
             error.append(sys.exc_info()[0])
 
         if error:
@@ -132,7 +129,6 @@ class ShowBattlesRequisitionView(View):
 
             data = json.dumps({"battles_requisition":_battles })
         except:
-            raise
             error.append(sys.exc_info()[0])
 
         if error:
@@ -142,59 +138,98 @@ class ShowBattlesRequisitionView(View):
 
 '''
     curl -X POST -H "Content-Type: application/json" -d '{"challenging":1, "challenged":2}' http://localhost:8000/battle_challenge/
+    curl -X POST -H "Content-Type: application/json" -d '{"challenging":1, "challenged":0}' http://localhost:8000/battle_challenge/
+
 '''
 class BattleRequisitionView(View):
     def post(self, *args, **kwargs):
+        error = []
         try:
             data=json.loads(self.request.body)
             print data
             challenging = UserGame.objects.get(pk=data['challenging'])
-            challenged = UserGame.objects.get(pk=data['challenged'])
+            if data['challenged'] != 0:
+                challenged = UserGame.objects.get(pk=data['challenged'])
+            else:
+                challenged = 0
 
             challenging_chest, challenging_leg, challenging_head, challenging_arm = None, None, None, None
 
             try:
-                if data['challenging_chest']:
-                    challenging_chest = UserGame.objects.get(
-                                            pk=data['challenging_chest'])
-            except KeyError:
-                pass
+                if challenging.challenging_chest > 0:
+                    challenging_chest = challenging.challenging_chest
+                else:
+                    challeging_chest = UserGame.objects.get(pk=1)
+
+            except:
+                challeging_chest = UserGame.objects.get(pk=1)
 
             try:
-                if data['challenging_leg']:
-                    challenging_leg = UserGame.objects.get(
-                                        pk=data['challenging_leg'])
-            except KeyError:
-                pass
+                if challenging.challenging_head > 0:
+                    challenging_head = challenging.challenging_head
+                else:
+                    challeging_head = UserGame.objects.get(pk=1)
+
+            except:
+                challeging_head = UserGame.objects.get(pk=1)
 
             try:
-                if data['challenging_arm']:
-                    challenging_arm = UserGame.objects.get(
-                                        pk=data['challenging_arm'])
-            except KeyError:
-                pass
+                if challenging.challenging_arm > 0:
+                    challenging_arm = challenging.challenging_arm
+                else:
+                    challeging_arm = UserGame.objects.get(pk=1)
+
+            except:
+                challeging_arm = UserGame.objects.get(pk=1)
+
 
             try:
-                if data['challenging_head']:
-                    challenging_head = UserGame.objects.get(
-                                        pk=data['challenging_head'])
-            except KeyError:
-                pass
+                if challenging.challenging_leg > 0:
+                    challenging_leg = challenging.challenging_leg
+                else:
+                    challeging_leg = UserGame.objects.get(pk=1)
 
-            rb = RequisitionBattle(challenging=challenging, challenged=challenged,
-                                    challenging_chest=challenging_chest,
-                                    challenging_leg=challenging_leg,
-                                    challenging_arm=challenging_arm,
-                                    challenging_head=challenging_head,
-                                    status="W")
-            rb.save()
-            msg = "Você foi desafiado para um combate!"
-            create_notification(msg, challenged)
+            except:
+                challeging_leg = UserGame.objects.get(pk=1)
+
+            ok = False
+            cont =0
+            while not ok:
+                cont += 1
+                if challenged == 0:
+                    #Filter other players for reputation - See method
+                    challenged = randomOpponent(challenging)
+                    if RequisitionBattle.objects.filter(challenged=challenged, challenging=challenging, status="W").count() == 0:
+                        ok = True
+                    else:
+                        challenged = 0
+                        # FAIL
+                        if cont > 5:
+                            ok = True
+
+
+            if not challenged == 0:
+                rb = RequisitionBattle(challenging=challenging, challenged=challenged,
+                                        challenging_chest=challenging_chest,
+                                        challenging_leg=challenging_leg,
+                                        challenging_arm=challenging_arm,
+                                        challenging_head=challenging_head,
+                                        status="W")
+                rb.save()
+                msg = "Você foi desafiado para um combate!"
+                create_notification(msg, challenged)
+            else:
+                error.append("Nao foi possivel encontrar um oponente - fudeu")
 
         except:
             raise
-        return HttpResponse('Challenged')
+            error.append("Ocorreu um erro -  tente novamente")
+            pass
 
+        if error:
+            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+        else:
+            return HttpResponse(json.dumps("OK") ,mimetype="aplication/json")
 '''
     Accept or decline battle requisition
 
@@ -202,85 +237,6 @@ class BattleRequisitionView(View):
 '''
 class BattleRequisitionConfirmView(View):
 
-    def process_battle(self, req):
-        print req
-        if not req.status == 'W':
-            return ""
-        else:
-            req.status = "F"
-            req.save()
-        '''
-            Randomiza quem comeca
-            Cria uma lista da ordem dos 3 ataques que fará no inicio (TODO)
-            Comeca atacando com primeiro da lista e guarda o resultado (TODO)
-            - Mesma coisa o inimigo
-            Ao final dos três ataques usa o mais efetivo (TODO)
-            Se hp <=0 fim da batalha
-        '''
-
-        # Create a battle
-        _battle = Battle(numberOfRounds=0, requisitionBattle=req, winner="")
-        _battle.save()
-
-        _round =0
-        _cont = True
-        _attacker = None
-        _defender = None
-        _challenging_attackers = []
-        _challenged_attackes = []
-        _winner = ""
-
-
-        if random.choice('ab') == 'a':
-            _attacker = req.challenging
-            _defender = req.challenged
-        else:
-            _attacker = req.challenged
-            _defender = req.challenging
-
-        while (_cont):
-            _round += 1
-            _att = random.randint(0, 6)
-            _def = random.randint(0, 6)
-            _hit = False
-            _damage = 0
-
-            if _att > _def:
-                _damage = random.randint(0,6)
-                _defender.hp -= _damage
-                _hit = True
-
-            log_battle = LogBattle(order=_round, player=_attacker,
-                                    typeAttack="K", hit=_hit,
-                                    damage=_damage, battle=_battle)
-            log_battle.save()
-            config = Config.objects.get(pk=1)
-
-            if _defender.hp <= 0:
-                _cont = False
-                _winner = _attacker.name
-
-                winner = UserGame.objects.get(pk=_attacker.pk)
-                winner.reputation += config.reputationBattleWinner
-                winner.xp += config.xpBattleWinner
-                winner.save()
-
-                loser = UserGame.objects.get(pk=_defender.pk)
-                loser.reputation -= config.reputationBattleLoser
-                loser.xp += config.xpBattleLoser
-                loser.save()
-
-            else:
-                _attacker, _defender = _defender, _attacker # :D
-
-        _battle.winner = _winner
-        _battle.numberOfRounds = _round
-        _battle.save()
-
-        print "End battle"
-        msg = "Uma batalha aconteceu, veja o resultado!"
-        create_notification(msg, req.challenging)
-        create_notification(msg, req.challenged)
 
     def get(self, *args, **kwargs):
         error = []
@@ -288,9 +244,8 @@ class BattleRequisitionConfirmView(View):
             reBattle = RequisitionBattle.objects.get(pk=self.kwargs['id_requisition'], status="W")
             data = json.dumps({"requisition": json_repr(reBattle) })
         except RequisitionBattle.DoesNotExist:
-            error.append("Nao foi possivel recuperar esta requisição pois a batalha já foi aceita")
+            error.append("Nao foi possivel recuperar esta requisicao pois a batalha ja foi aceita")
         except:
-            raise
             error.append(sys.exc_info()[0])
 
         if error:
@@ -299,24 +254,60 @@ class BattleRequisitionConfirmView(View):
             return HttpResponse(data ,mimetype="aplication/json")
 
     def post(self, *args, **kwargs):
+        error = []
         try:
             data=json.loads(self.request.body)
             req = RequisitionBattle.objects.get(pk=self.kwargs['id_requisition'])
             if req.status == "W":
-
                 if data['accept'] == 'true' or data['accept'] == 'True':
+                    challenged = UserGame.objects.get(pk=req.challenged.pk)
+                    try:
+                        if challenged.chest:
+                            challenged_chest = challengend.chest
+                    except:
+                        challenged_chest = Item.objects.get(pk=1)
+
+                    try:
+                        if challenged.leg:
+                            challenged_leg = challenged.leg
+                    except:
+                        challenged_leg = Item.objects.get(pk=1)
+
+                    try:
+                        if challenged.arm:
+                            challenged_arm = challenged.arm
+                    except:
+                        challenged_arm = Item.objects.get(pk=1)
+
+                    try:
+                        if challenged.head:
+                            challenged_head = challenged.head
+                    except:
+                        challenged_chest = UserGame.objects.get(pk=1)
+
+                    req.challenged_chest = challenged_chest
+                    req.challenged_leg = challenged_leg
+                    req.challenged_arm = challenged_arm
+                    req.challenged_head = challenged_head
+                    req.save()
+
                     print 'ACCEPT MOTHERFUCK!'
                     self.process_battle(req)
 
                 else:
                     req.status = "C"
-                    # Vai remover reputação ?
                     req.save()
-                    msg = "O jogador %s nao aceitou sua solicitação de batalha", req.challenged
+                    msg = "O jogador %s nao aceitou sua solicitacao de batalha", req.challenged
                     create_notification(msg, req.challenging)
+                data = "OK"
         except:
-            raise
-        return HttpResponse('OK')
+            error.append("Ocorreu um problema")
+            pass
+
+        if error:
+            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+        else:
+            return HttpResponse(data ,mimetype="aplication/json")
 
 
 '''
@@ -337,7 +328,6 @@ class ShowBattleView(View):
             data = json.dumps({"battle":json_repr(_battle), "details":json_repr(_req), "log":_itens })
 
         except:
-            raise
             error.append(sys.exc_info()[0])
 
         if error:
@@ -361,7 +351,6 @@ class ShowAllItensView(View):
             data = json.dumps({"itens":_itens })
 
         except:
-            raise
             error.append(sys.exc_info()[0])
 
         if error:
@@ -386,7 +375,6 @@ class ShowMyItensView(View):
             data = json.dumps({"my_itens":_itens })
 
         except:
-            raise
             error.append(sys.exc_info()[0])
 
         if error:
@@ -410,13 +398,56 @@ class ShowRankingView(View):
             data = json.dumps({"ranking":_itens })
 
         except:
-            raise
             error.append(sys.exc_info()[0])
 
         if error:
             return HttpResponse(json.dumps(error), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
+
+
+class MessageView(View):
+
+    '''
+        curl -X GET -H "Content-Type: application/json"  http://localhost:8000/message/1/
+    '''
+    def get(self, *args, **kwargs):
+        error = []
+        try:
+            _msg = Notification.objects.get(pk=self.kwargs['id_msg'])
+        except:
+            error.append("Erro ao processar solicitacao")
+            pass
+
+        if error:
+            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+        else:
+           return HttpResponse(json_repr(_msg) ,mimetype="aplication/json")
+
+
+    '''
+        curl -X POST -H "Content-Type: application/json" -d '{"action":"remove"}' http://localhost:8000/message/1/
+    '''
+    def post(self, *args, **kwargs):
+        error = []
+        try:
+            data=json.loads(self.request.body)
+            _msg = Notification.objects.get(pk=self.kwargs['id_msg'])
+            action = data['action']
+            if action == "remove" or action == "Remove":
+                _msg.delete()
+            else:
+                pass
+            data = json.dumps({"response":"OK" })
+
+        except:
+            error.append("Erro ao processar solicitacao")
+            pass
+
+        if error:
+            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+        else:
+           return HttpResponse(data ,mimetype="aplication/json")
 
 
 '''
@@ -433,7 +464,6 @@ class FriendsView(View):
             _friends = json.dumps([dict(friend=json_repr(pn.friend.name)) for pn in friends])
             data = json.dumps({"friends":_friends })
         except:
-            raise
             error.append(sys.exc_info()[0])
 
         if error:
@@ -469,14 +499,13 @@ class FriendsView(View):
             data = json.dumps({"response":"OK" })
 
         except:
-            raise
             error.append("Erro ao processar solicitacao")
             pass
 
         if error:
             return HttpResponse(json.dumps(error), mimetype="aplication/json")
         else:
-           return HttpResponse(data ,mimetype="aplication/json")
+            return HttpResponse(data ,mimetype="aplication/json")
 
 
 '''
@@ -493,13 +522,13 @@ class ShowEnemyView(View):
             data = json.dumps({"user":_user })
 
         except:
-            raise
             error.append(sys.exc_info()[0])
 
         if error:
             return HttpResponse(json.dumps(error), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
+
 
 class SetItemView(View):
 
@@ -538,7 +567,7 @@ class SetItemView(View):
                 #except DoesNotExit:
                 #    error.append("Item nao existe para este usuario")
                 except:
-                    raise
+                    pass
             else:
                 try:
                     u= UserGame.objects.get(pk=_user.pk, items=_item.pk)
@@ -564,12 +593,10 @@ class SetItemView(View):
                 #except DoesNotExit:
                 #    error.append("Item nao existe para este usuario")
                 except:
-                    raise
-
+                    pass
             data = json.dumps({"response":"OK" })
 
         except:
-            raise
             error.append("Erro ao processar solicitacao")
             pass
 
@@ -579,7 +606,281 @@ class SetItemView(View):
            return HttpResponse(data ,mimetype="aplication/json")
 
 
+def verifyEffect(_elem_attacker, _elem_defense):
+    # ELEMENTS - W >  F > A > E >
+    if _elem_attacker == "W":
+        if _elem_defense == "F":
+            return 2
+        elif _elem_defense == "A":
+            return 1
+        elif _elem_defense == "E":
+            return 0
+        else:
+            return 1
+
+    if _elem_attacker == "F":
+        if _elem_defense == "A":
+            return 2
+        elif _elem_defense == "E":
+            return 1
+        elif _elem_defense == "W":
+            return 0
+        else:
+            return 1
+
+    if _elem_attacker == "A":
+        if _elem_defense == "E":
+            return 2
+        elif _elem_defense == "W":
+            return 1
+        elif _elem_defense == "F":
+            return 0
+        else:
+            return 1
+
+    if _elem_attacker == "E":
+        if _elem_defense == "W":
+            return 2
+        elif _elem_defense == "F":
+            return 1
+        elif _elem_defense == "A":
+            return 0
+        else:
+            return 1
+
+
+def setPercentForAttack(effect, perc, type_att):
+    # HALTER, PUNCH, KICK
+    if type_att == "H":
+        if effect == 2:
+            perc["halter"] += 20
+            perc["punch"] -= 10
+            perc["kick"] -= 10
+        elif effect == 1:
+            perc["halter"] += 10
+            perc["punch"] -= 5
+            perc["kick"] -= 5
+        else:
+            perc["halter"] -= 10
+            perc["punch"] += 5
+            perc["kick"] += 5
+    elif type_att == "P":
+        if effect == 2:
+            perc["halter"] -= 10
+            perc["punch"] += 20
+            perc["kick"] -= 10
+        elif effect == 1:
+            perc["halter"] -= 5
+            perc["punch"] += 10
+            perc["kick"] -= 5
+        else:
+            perc["halter"] += 5
+            perc["punch"] -= 10
+            perc["kick"] += 5
+    elif type_att == "K":
+        if effect == 2:
+            perc["halter"] -= 10
+            perc["punch"] -= 10
+            perc["kick"] += 20
+        elif effect == 1:
+            perc["halter"] -= 5
+            perc["punch"] -= 5
+            perc["kick"] += 10
+        else:
+            perc["halter"] += 5
+            perc["punch"] += 5
+            perc["kick"] -= 10
+
+    #VALID
+    valid = False
+    while not valid:
+        print "Fix Table percents"
+        if perc["halter"] <=0:
+            perc["halter"] += 2
+            perc["punch"] -= 1
+            perc["kick"] -= 1
+
+        if perc["punch"] <=0:
+            perc["halter"] -= 1
+            perc["punch"] += 2
+            perc["kick"] -= 1
+
+        if perc["kick"] <=0:
+            perc["halter"] -= 1
+            perc["punch"] -= 1
+            perc["kick"] += 2
+
+        if perc["halter"] > 0 and perc["punch"] > 0 and perc["kick"] > 0:
+            if perc["halter"] + perc["punch"] + perc["kick"] == 99:
+                valid = True
+
+    return perc
+
+
 def create_notification(_message, _to):
     user = UserGame.objects.get(pk=_to.pk)
     msg = Notification(message=_message, user=user)
     msg.save()
+
+
+def randomOpponent(req):
+    select = 0
+    _range = 50
+    _notInfiniteLoop = 0
+    while _notInfiniteLoop < 20:
+        _notInfiniteLoop += 1
+        ugs = UserGame.objects.filter(reputation__range=[req.reputation-_range, req.reputation+_range]).exclude(pk=req.pk)
+        if ugs.count() <= 0 :
+            _range += 25
+        else:
+            select = ugs[random.randint(0,ugs.count()-1)]
+            break
+
+    return select
+
+
+def process_battle(self, req):
+    print req
+    if not req.status == 'W':
+        return ""
+    else:
+        req.status = "F"
+        req.save()
+    '''
+        Randomiza quem comeca
+        A cada ataque verifica se foi efetivo, super efetivo ou nulo.
+        Aumenta ou reduz a porcetagem de uso
+        - Mesma coisa o inimigo
+        Se hp <=0 fim da batalha
+    '''
+
+    # Create a battle
+    _battle = Battle(numberOfRounds=0, requisitionBattle=req, winner="")
+    _battle.save()
+
+    _round =0
+    _cont = True
+    _attacker = None
+    _defender = None
+    _challenging_attackers, _challenged_attackes = [], []
+    _perc = { "halter":33, "punch":33, "kick":33 }, { "halter":33, "punch":33, "kick":33 }
+    _winner = ""
+    _elem_attacker = ""
+    _elem_defense = ""
+
+    if random.choice('ab') == 'a':
+        _attacker = req.challenging
+        _defender = req.challenged
+        _current = 1
+    else:
+        _attacker = req.challenged
+        _defender = req.challenging
+        _current = 2
+
+    while (_cont):
+        #choice type attack
+        tr = random.randint(0, 99)
+        if tr in range(0, halter):
+            _type_attack = "H"
+            if _current == 1:
+                _elem_attacker = req.challeging_head.element
+                _elem_defense = req.challeged_chest.element
+                _att = random.randint(0, 6+req.challeging_head.attribute)
+                _damage = random.randint(1,6+req.challeging_head.attribute)
+            else:
+                _elem_attacker = req.challeged_head.element
+                _elem_defense = req.challeging_chest.element
+                _att = random.randint(0, 6+req.challenged_head.attribute)
+                _damage = random.randint(1,6+req.challenged_head.attribute)
+
+        elif tr in range(halter+1, halter+punch):
+            _type_Attack = "P"
+            if _current == 1:
+                _elem_attacker = req.challeging_head.element
+                _elem_defense = req.challeged_chest.element
+                _att = random.randint(0, 6+req.challeging_arm.attribute)
+                _damage = random.randint(1,6+req.challeging_arm.attribute)
+            else:
+                _elem_attacker = req.challeged_head.element
+                _elem_defense = req.challeging_chest.element
+                _att = random.randint(0, 6+req.challenged_arm.attribute)
+                _damage = random.randint(1,6+req.challenged_arm.attribute)
+
+        elif tr in range(halter+punch+1, halter+punch+kick):
+            _type_attack = "K"
+            if _current == 1:
+                _elem_attacker = req.challeging_head.element
+                _elem_defense = req.challeged_chest.element
+                _att = random.randint(0, 6+req.challeging_leg.attribute)
+                _damage = random.randint(1,6+req.challeging_leg.attribute)
+            else:
+                _elem_attacker = req.challeged_head.element
+                _elem_defense = req.challeging_chest.element
+                _att = random.randint(0, 6+req.challenged_leg.attribute)
+                _damage = random.randint(1,6+req.challenged_leg.attribute)
+
+        _round += 1
+        if _current == 1:
+            _def = random.randint(0, 6+req.challenging_chest.attribute)
+        else:
+            _def = random.randint(0, 6+req.challenged_chest.attribute)
+        _hit = False
+
+        _effect = verifyEffect(_elem_attacker, _elem_defense)
+        if _effect == 1:
+            #Effective
+            if _att > _def:
+                _defender.hp -= _damage
+                _hit = True
+        elif _effect == 2:
+            #SuperEffective
+            if _att*2 > _def:
+                _defender.hp -= _damage*2
+        else:
+            #Not Effect
+            if _att > _def*2:
+                _defender.hp -= _damage/2
+
+        if _hit:
+            if _current == 1:
+                _perc[0] = setPercentForAttack(_effect, _perc[0], _type_attack)
+            else:
+                _perc[1] = setPercentForAttack(_effect, _perc[1], _type_attack)
+
+
+        log_battle = LogBattle(order=_round, player=_attacker,
+                                typeAttack=_type_attack, hit=_hit,
+                                damage=_damage, battle=_battle)
+        log_battle.save()
+
+        if _defender.hp <= 0:
+            config = Config.objects.get(pk=1)
+            _cont = False
+            _winner = _attacker.name
+
+            winner = UserGame.objects.get(pk=_attacker.pk)
+            winner.reputation += config.reputationBattleWinner
+            winner.xp += config.xpBattleWinner
+            winner.save()
+
+            loser = UserGame.objects.get(pk=_defender.pk)
+            loser.reputation -= config.reputationBattleLoser
+            loser.xp += config.xpBattleLoser
+            loser.save()
+
+        else:
+            _attacker, _defender = _defender, _attacker # :D
+            if _current == 1:
+                _current = 2
+            else:
+                _current = 1
+
+    _battle.winner = _winner
+    _battle.numberOfRounds = _round
+    _battle.save()
+
+    print "End battle"
+    msg = "Uma batalha aconteceu, veja o resultado!"
+    create_notification(msg, req.challenging)
+    create_notification(msg, req.challenged)
+

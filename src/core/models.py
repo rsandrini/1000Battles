@@ -33,6 +33,7 @@ TYPE_CHOICES = (
     (TYPE_ESP, "Especial")
 )
 
+ELEM_BASIC = "B"
 ELEM_FIRE = "F"
 ELEM_AIR = "A"
 ELEM_WATER = "W"
@@ -41,7 +42,8 @@ ELEM_CHOICES = (
     (ELEM_FIRE, "Fire"),
     (ELEM_AIR, "Air"),
     (ELEM_WATER, "Water"),
-    (ELEM_EARTH, "Earth")
+    (ELEM_EARTH, "Earth"),
+    (ELEM_BASIC, "Basic")
 )
 
 # Create your models here.
