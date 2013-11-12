@@ -58,9 +58,8 @@ class Item(models.Model):
     name = models.CharField(u'Name', max_length=250)
     type_item = models.CharField(u'Type Item', max_length=1, choices=TYPE_CHOICES)
     element = models.CharField(u'Element', max_length=1, choices=ELEM_CHOICES)
-    attribute = models.CharField(u'Attribute', max_length=100)
-    xpRequired = models.FloatField(u'Xp Required')
-    #user = models.ForeignKey(UserGame, verbose_name="UserItem")
+    attribute = models.IntegerField(u'Attribute (defense or damage)', default=0)
+    xpRequired = models.IntegerField(u'Xp Required', default=0)
 
     def __unicode__(self):
         return self.name
@@ -140,7 +139,13 @@ class LogBattle(models.Model):
     battle = models.ForeignKey(Battle, related_name="Battle")
 
     def __unicode__(self):
-        return self.player
+        if self.hit:
+            _hit = "acertou"
+        else:
+            _hit = "nao acertou"
+
+        return "%s atacou com %s e %s causando %s de dano" % (self.player, self.get_typeAttack_display(), _hit, int(self.damage))
+        #return "%s atacou com %s e %s causando %f de dano", (self.player, self.get_typeAttack_display(), _hit, self.damage)
 
 
 class Notification(models.Model):

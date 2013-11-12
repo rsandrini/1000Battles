@@ -39,7 +39,7 @@ class LoginView(View):
             pass
 
 '''
-    curl -X POST -H "Content-Type: application/json" -d '{"username":"", "password":"", "email":"", "name":""}' http://localhost:8000/registration/
+    curl -X POST -H "Content-Type: application/json" -d '{"username":"", "password":"", "email":"", "name":""}' http://localhost:8000/register/
 '''
 class RegisterView(View):
     def post(self, *args, **kwargs):
@@ -150,74 +150,47 @@ class BattleRequisitionView(View):
             challenging = UserGame.objects.get(pk=data['challenging'])
             if data['challenged'] != 0:
                 challenged = UserGame.objects.get(pk=data['challenged'])
+                print "Challenged select"
+                if RequisitionBattle.objects.filter(challenged=challenged, challenging=challenging, status="W").count() == 1:
+                    error.append("Ja existe uma requisicao de batalha criada")
+                    return HttpResponse(json.dumps(error), mimetype="aplication/json")
             else:
                 challenged = 0
 
             challenging_chest, challenging_leg, challenging_head, challenging_arm = None, None, None, None
 
-            try:
-                if challenging.challenging_chest > 0:
-                    challenging_chest = challenging.challenging_chest
-                else:
-                    challeging_chest = UserGame.objects.get(pk=1)
+            if challenging.chest:
+                _chest = challenging.chest
+            else:
+                _chest = Item.objects.get(pk=1)
 
-            except:
-                challeging_chest = UserGame.objects.get(pk=1)
+            if challenging.head:
+                _head = challenging.head
+            else:
+                _head = Item.objects.get(pk=1)
 
-            try:
-                if challenging.challenging_head > 0:
-                    challenging_head = challenging.challenging_head
-                else:
-                    challeging_head = UserGame.objects.get(pk=1)
+            if challenging.arm:
+                _arm = challenging.arm
+            else:
+                _arm = Item.objects.get(pk=1)
 
-            except:
-                challeging_head = UserGame.objects.get(pk=1)
+            if challenging.leg:
+                _leg = challenging.leg
+            else:
+                _leg = Item.objects.get(pk=1)
 
-            try:
-                if challenging.challenging_arm > 0:
-                    challenging_arm = challenging.challenging_arm
-                else:
-                    challeging_arm = UserGame.objects.get(pk=1)
-
-            except:
-                challeging_arm = UserGame.objects.get(pk=1)
-
-
-            try:
-                if challenging.challenging_leg > 0:
-                    challenging_leg = challenging.challenging_leg
-                else:
-                    challeging_leg = UserGame.objects.get(pk=1)
-
-            except:
-                challeging_leg = UserGame.objects.get(pk=1)
-
-            ok = False
-            cont =0
-            while not ok:
-                cont += 1
-                if challenged == 0:
-                    #Filter other players for reputation - See method
-                    challenged = randomOpponent(challenging)
-                    if RequisitionBattle.objects.filter(challenged=challenged, challenging=challenging, status="W").count() == 0:
-                        ok = True
-                    else:
-                        challenged = 0
-                        # FAIL
-                        if cont > 5:
-                            ok = True
-
+            challenged = randomOpponent(challenging)
 
             if not challenged == 0:
                 rb = RequisitionBattle(challenging=challenging, challenged=challenged,
-                                        challenging_chest=challenging_chest,
-                                        challenging_leg=challenging_leg,
-                                        challenging_arm=challenging_arm,
-                                        challenging_head=challenging_head,
+                                        challenging_chest=_chest,
+                                        challenging_leg=_leg,
+                                        challenging_arm=_arm,
+                                        challenging_head=_head,
                                         status="W")
                 rb.save()
                 msg = "Você foi desafiado para um combate!"
-                create_notification(msg, challenged)
+                createNotification(msg, challenged)
             else:
                 error.append("Nao foi possivel encontrar um oponente - fudeu")
 
@@ -261,46 +234,43 @@ class BattleRequisitionConfirmView(View):
             if req.status == "W":
                 if data['accept'] == 'true' or data['accept'] == 'True':
                     challenged = UserGame.objects.get(pk=req.challenged.pk)
-                    try:
-                        if challenged.chest:
-                            challenged_chest = challengend.chest
-                    except:
-                        challenged_chest = Item.objects.get(pk=1)
+                    if challenged.chest:
+                        _challenged_chest = challenged.chest
+                    else:
+                       _challenged_chest = Item.objects.get(pk=1)
 
-                    try:
-                        if challenged.leg:
-                            challenged_leg = challenged.leg
-                    except:
-                        challenged_leg = Item.objects.get(pk=1)
+                    if challenged.leg:
+                        _challenged_leg = challenged.leg
+                    else:
+                        _challenged_leg = Item.objects.get(pk=1)
 
-                    try:
-                        if challenged.arm:
-                            challenged_arm = challenged.arm
-                    except:
-                        challenged_arm = Item.objects.get(pk=1)
+                    if challenged.arm:
+                        _challenged_arm = challenged.arm
+                    else:
+                        _challenged_arm = Item.objects.get(pk=1)
 
-                    try:
-                        if challenged.head:
-                            challenged_head = challenged.head
-                    except:
-                        challenged_chest = UserGame.objects.get(pk=1)
+                    if challenged.head:
+                        _challenged_head = challenged.head
+                    else:
+                        _challenged_head = Item.objects.get(pk=1)
 
-                    req.challenged_chest = challenged_chest
-                    req.challenged_leg = challenged_leg
-                    req.challenged_arm = challenged_arm
-                    req.challenged_head = challenged_head
+                    req.challenged_chest = _challenged_chest
+                    req.challenged_leg = _challenged_leg
+                    req.challenged_arm = _challenged_arm
+                    req.challenged_head = _challenged_head
                     req.save()
 
                     print 'ACCEPT MOTHERFUCK!'
-                    self.process_battle(req)
+                    processBattle(req)
 
                 else:
                     req.status = "C"
                     req.save()
                     msg = "O jogador %s nao aceitou sua solicitacao de batalha", req.challenged
-                    create_notification(msg, req.challenging)
+                    createNotification(msg, req.challenging)
                 data = "OK"
         except:
+            raise
             error.append("Ocorreu um problema")
             pass
 
@@ -607,6 +577,9 @@ class SetItemView(View):
 
 
 def verifyEffect(_elem_attacker, _elem_defense):
+    if _elem_defense == "B" or _elem_attacker == "B":
+        return 1
+
     # ELEMENTS - W >  F > A > E >
     if _elem_attacker == "W":
         if _elem_defense == "F":
@@ -717,7 +690,7 @@ def setPercentForAttack(effect, perc, type_att):
     return perc
 
 
-def create_notification(_message, _to):
+def createNotification(_message, _to):
     user = UserGame.objects.get(pk=_to.pk)
     msg = Notification(message=_message, user=user)
     msg.save()
@@ -727,9 +700,14 @@ def randomOpponent(req):
     select = 0
     _range = 50
     _notInfiniteLoop = 0
-    while _notInfiniteLoop < 20:
+    filter_players = RequisitionBattle.objects.filter(challenging=req.pk, status="W").values("challenged")
+    while _notInfiniteLoop < 10:
         _notInfiniteLoop += 1
-        ugs = UserGame.objects.filter(reputation__range=[req.reputation-_range, req.reputation+_range]).exclude(pk=req.pk)
+        ugs = UserGame.objects.filter(
+            reputation__range=[req.reputation-_range,
+            req.reputation+_range]).exclude(
+                pk=req.pk).exclude(
+                    pk__in=filter_players)
         if ugs.count() <= 0 :
             _range += 25
         else:
@@ -739,20 +717,12 @@ def randomOpponent(req):
     return select
 
 
-def process_battle(self, req):
-    print req
+def processBattle(req):
     if not req.status == 'W':
-        return ""
+        return
     else:
         req.status = "F"
         req.save()
-    '''
-        Randomiza quem comeca
-        A cada ataque verifica se foi efetivo, super efetivo ou nulo.
-        Aumenta ou reduz a porcetagem de uso
-        - Mesma coisa o inimigo
-        Se hp <=0 fim da batalha
-    '''
 
     # Create a battle
     _battle = Battle(numberOfRounds=0, requisitionBattle=req, winner="")
@@ -760,14 +730,12 @@ def process_battle(self, req):
 
     _round =0
     _cont = True
-    _attacker = None
-    _defender = None
+    _attacker, _defender = None, None
     _challenging_attackers, _challenged_attackes = [], []
     _perc = { "halter":33, "punch":33, "kick":33 }, { "halter":33, "punch":33, "kick":33 }
-    _winner = ""
-    _elem_attacker = ""
-    _elem_defense = ""
+    _winner, _elem_attacker, _elem_defense  = None, None, None
 
+    #init a first attack
     if random.choice('ab') == 'a':
         _attacker = req.challenging
         _defender = req.challenged
@@ -777,47 +745,62 @@ def process_battle(self, req):
         _defender = req.challenging
         _current = 2
 
+    # battle \,,/
     while (_cont):
         #choice type attack
+        if _current == 1:
+            pc = _perc[0] # represent a percentual for effective damage/attack
+        else:
+            pc = _perc[1]
+
+        # Random type attack (checks on which track the percentage is)
         tr = random.randint(0, 99)
-        if tr in range(0, halter):
+
+        #print "Testing if %s in %s" % (tr, range(0, pc["halter"]))
+        #print "Testing if %s in %s" % (tr, range(pc["halter"], pc["halter"]+pc["punch"]))
+        #print "Testing if %s in %s" % (tr, range(pc["halter"]+pc["punch"], pc["halter"]+pc["punch"]+pc["kick"]) )
+
+        if tr in range(0, pc["halter"]):
             _type_attack = "H"
             if _current == 1:
-                _elem_attacker = req.challeging_head.element
-                _elem_defense = req.challeged_chest.element
-                _att = random.randint(0, 6+req.challeging_head.attribute)
-                _damage = random.randint(1,6+req.challeging_head.attribute)
+                _elem_attacker = req.challenging_head.element
+                _elem_defense = req.challenged_chest.element
+                _att = random.randint(0, 6+req.challenging_head.attribute)
+                _damage = random.randint(1,6+req.challenging_head.attribute)
             else:
-                _elem_attacker = req.challeged_head.element
-                _elem_defense = req.challeging_chest.element
+                _elem_attacker = req.challenged_head.element
+                _elem_defense = req.challenging_chest.element
                 _att = random.randint(0, 6+req.challenged_head.attribute)
                 _damage = random.randint(1,6+req.challenged_head.attribute)
 
-        elif tr in range(halter+1, halter+punch):
-            _type_Attack = "P"
+        elif tr in range(pc["halter"], pc["halter"]+pc["punch"]):
+            _type_attack = "P"
             if _current == 1:
-                _elem_attacker = req.challeging_head.element
-                _elem_defense = req.challeged_chest.element
-                _att = random.randint(0, 6+req.challeging_arm.attribute)
-                _damage = random.randint(1,6+req.challeging_arm.attribute)
+                _elem_attacker = req.challenging_arm.element
+                _elem_defense = req.challenged_chest.element
+                _att = random.randint(0, 6+req.challenging_arm.attribute)
+                _damage = random.randint(1,6+req.challenging_arm.attribute)
             else:
-                _elem_attacker = req.challeged_head.element
-                _elem_defense = req.challeging_chest.element
+                _elem_attacker = req.challenged_arm.element
+                _elem_defense = req.challenging_chest.element
                 _att = random.randint(0, 6+req.challenged_arm.attribute)
                 _damage = random.randint(1,6+req.challenged_arm.attribute)
 
-        elif tr in range(halter+punch+1, halter+punch+kick):
+        elif tr in range(pc["halter"]+pc["punch"],
+                pc["halter"]+pc["punch"]+pc["kick"]):
             _type_attack = "K"
             if _current == 1:
-                _elem_attacker = req.challeging_head.element
-                _elem_defense = req.challeged_chest.element
-                _att = random.randint(0, 6+req.challeging_leg.attribute)
-                _damage = random.randint(1,6+req.challeging_leg.attribute)
+                _elem_attacker = req.challenging_leg.element
+                _elem_defense = req.challenged_chest.element
+                _att = random.randint(0, 6+req.challenging_leg.attribute)
+                _damage = random.randint(1,6+req.challenging_leg.attribute)
             else:
-                _elem_attacker = req.challeged_head.element
-                _elem_defense = req.challeging_chest.element
+                _elem_attacker = req.challenged_leg.element
+                _elem_defense = req.challenging_chest.element
                 _att = random.randint(0, 6+req.challenged_leg.attribute)
                 _damage = random.randint(1,6+req.challenged_leg.attribute)
+        else:
+            print "[FAIL!] ATTACK IN: %i" % tr
 
         _round += 1
         if _current == 1:
@@ -843,11 +826,14 @@ def process_battle(self, req):
 
         if _hit:
             if _current == 1:
-                _perc[0] = setPercentForAttack(_effect, _perc[0], _type_attack)
+                setPercentForAttack(_effect, _perc[0], _type_attack)
             else:
-                _perc[1] = setPercentForAttack(_effect, _perc[1], _type_attack)
+                setPercentForAttack(_effect, _perc[1], _type_attack)
 
+        print _perc
 
+        if not _hit:
+            _damage = 0
         log_battle = LogBattle(order=_round, player=_attacker,
                                 typeAttack=_type_attack, hit=_hit,
                                 damage=_damage, battle=_battle)
@@ -881,6 +867,6 @@ def process_battle(self, req):
 
     print "End battle"
     msg = "Uma batalha aconteceu, veja o resultado!"
-    create_notification(msg, req.challenging)
-    create_notification(msg, req.challenged)
+    createNotification(msg, req.challenging)
+    createNotification(msg, req.challenged)
 
