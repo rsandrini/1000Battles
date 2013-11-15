@@ -24,6 +24,6 @@ urlpatterns = patterns('',
     url(r'^setitem/(?P<id>\d+)/$', SetItemView.as_view(), name="set_item"),
     url(r'^friends/(?P<id>\d+)/$', FriendsView.as_view(), name="friends"),
     url(r'^player/(?P<id>\d+)/$', ShowEnemyView.as_view(), name="friends"),
-    url(r'^message/(?P<id_msg>\d+)/$', MessageView.as_view(), name="message"),
+    url(r'^messages/(?P<id>\d+)/$', MessageView.as_view(), name="messages"),
 
 )

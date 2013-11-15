@@ -1,20 +1,19 @@
 # -*- coding: utf-8 -*-
 
 from django.views.generic import View
-from core.models import *
-import json
 from django.http import HttpResponse
-import sys
-from core.utils import *
 from django.db.models import Q
+from core.models import *
+from core.utils import *
+import json
+import sys
 import random
-from django.core.exceptions import ObjectDoesNotExist
 
 
 class IndexView(View):
     def get(self, *args, **kwargs):
-
-        return HttpResponse(json.dumps("TESTE"), mimetype="application/json")
+        return HttpResponse(json.dumps({"response":"OK"}),
+            mimetype="application/json")
 
 
 '''
@@ -22,7 +21,7 @@ class IndexView(View):
 '''
 class LoginView(View):
     def get(self, *args, **kwargs):
-        return HttpResponse(json.dumps("OK"), mimetype="application/json")
+        return HttpResponse(json.dumps({"response":"Tente um POST"}), mimetype="application/json")
 
     def post(self, *args, **kwargs):
         try:
@@ -30,13 +29,15 @@ class LoginView(View):
             data = json.loads(self.request.body)
             if UserLogin.objects.filter(username=data['username'], password=data['password']).count() == 1:
                 ul = UserLogin.objects.get(username=data['username'], password=data['password'])
-                return HttpResponse(json.dumps('logged'), mimetype='aplication/json')
+                return HttpResponse(json.dumps({"response":"OK"}), mimetype='aplication/json')
             else:
                 error.append("Login ou senha incorretos")
-                return HttpResponse(json.dumps(error), mimetype='aplication/json')
+                return HttpResponse(json.dumps({"response":error}), mimetype='aplication/json')
 
         except:
-            pass
+            error.append("Login ou senha incorretos - Fail")
+            return HttpResponse(json.dumps({"response":error}), mimetype='aplication/json')
+
 
 '''
     curl -X POST -H "Content-Type: application/json" -d '{"username":"", "password":"", "email":"", "name":""}' http://localhost:8000/register/
@@ -59,11 +60,11 @@ class RegisterView(View):
             else:
                 error.append("Usuario ou email ja registrados")
         except:
-            pass
+            error.append("Ocorreu um erro")
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
-            return HttpResponse(json.dumps("registred"), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":"OK"}), mimetype="aplication/json")
 
 
 '''
@@ -75,17 +76,16 @@ class DashboardView(View):
         error = []
         try:
             user = UserGame.objects.get(pk=idUser)
-            #itens = Item.objects.filter(user=user)
             friends = Friend.objects.filter(user=user)
             _user = json_repr(user)
             _friends = json.dumps([dict(friend=json_repr(pn.friend.name)) for pn in friends])
             data = json.dumps({"user":_user, "friends":_friends })
 
         except:
-            error.append(sys.exc_info()[0])
+            error.append("Ocorreu um erro ao buscar os dados")
 
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
@@ -108,7 +108,7 @@ class BattleView(View):
             error.append(sys.exc_info()[0])
 
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
@@ -129,10 +129,10 @@ class ShowBattlesRequisitionView(View):
 
             data = json.dumps({"battles_requisition":_battles })
         except:
-            error.append(sys.exc_info()[0])
+            error.append("Ocorreu um erro ao recuperar")
 
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
@@ -153,7 +153,7 @@ class BattleRequisitionView(View):
                 print "Challenged select"
                 if RequisitionBattle.objects.filter(challenged=challenged, challenging=challenging, status="W").count() == 1:
                     error.append("Ja existe uma requisicao de batalha criada")
-                    return HttpResponse(json.dumps(error), mimetype="aplication/json")
+                    return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
             else:
                 challenged = 0
 
@@ -195,21 +195,18 @@ class BattleRequisitionView(View):
                 error.append("Nao foi possivel encontrar um oponente - fudeu")
 
         except:
-            raise
             error.append("Ocorreu um erro -  tente novamente")
-            pass
 
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
-            return HttpResponse(json.dumps("OK") ,mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":"OK"}) ,mimetype="aplication/json")
 '''
     Accept or decline battle requisition
 
     curl -X POST -H "Content-Type: application/json" -d '{"accept":"True"}' http://localhost:8000/battle_requisition_confirm/3/
 '''
 class BattleRequisitionConfirmView(View):
-
 
     def get(self, *args, **kwargs):
         error = []
@@ -219,10 +216,10 @@ class BattleRequisitionConfirmView(View):
         except RequisitionBattle.DoesNotExist:
             error.append("Nao foi possivel recuperar esta requisicao pois a batalha ja foi aceita")
         except:
-            error.append(sys.exc_info()[0])
+            error.append("Ocorreu um erro ao recuperar os dados")
 
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
@@ -260,7 +257,7 @@ class BattleRequisitionConfirmView(View):
                     req.challenged_head = _challenged_head
                     req.save()
 
-                    print 'ACCEPT MOTHERFUCK!'
+                    print 'ACCEPTED MOTHERFUCK!'
                     processBattle(req)
 
                 else:
@@ -268,16 +265,14 @@ class BattleRequisitionConfirmView(View):
                     req.save()
                     msg = "O jogador %s nao aceitou sua solicitacao de batalha", req.challenged
                     createNotification(msg, req.challenging)
-                data = "OK"
+                result = {"response":"OK"}
         except:
-            raise
             error.append("Ocorreu um problema")
-            pass
 
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
-            return HttpResponse(data ,mimetype="aplication/json")
+            return HttpResponse(json.dumps(result) ,mimetype="aplication/json")
 
 
 '''
@@ -298,10 +293,9 @@ class ShowBattleView(View):
             data = json.dumps({"battle":json_repr(_battle), "details":json_repr(_req), "log":_itens })
 
         except:
-            error.append(sys.exc_info()[0])
-
+            error.append("Nao foi possivel recuperar esta batalha")
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
@@ -319,12 +313,11 @@ class ShowAllItensView(View):
                 _itens.append(dict(item=json_repr(i)))
 
             data = json.dumps({"itens":_itens })
-
         except:
-            error.append(sys.exc_info()[0])
+            error.append("Nao foi possivel recuperar os itens")
 
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
@@ -345,10 +338,9 @@ class ShowMyItensView(View):
             data = json.dumps({"my_itens":_itens })
 
         except:
-            error.append(sys.exc_info()[0])
-
+            error.append("Nao foi possivel recuperar seus itens")
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
@@ -371,53 +363,56 @@ class ShowRankingView(View):
             error.append(sys.exc_info()[0])
 
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
 
 class MessageView(View):
 
-    '''
-        curl -X GET -H "Content-Type: application/json"  http://localhost:8000/message/1/
-    '''
     def get(self, *args, **kwargs):
         error = []
         try:
-            _msg = Notification.objects.get(pk=self.kwargs['id_msg'])
+            _user = UserGame.objects.get(pk=self.kwargs['id'])
+            msgs = Notification.objects.filter(user=_user)
+            _msgs = []
+            for i in msgs:
+                _msgs.append(dict(item=json_repr(i)))
+
+            data = json.dumps({"messages":_msgs })
+
         except:
+            raise
             error.append("Erro ao processar solicitacao")
-            pass
 
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
-           return HttpResponse(json_repr(_msg) ,mimetype="aplication/json")
-
+            return HttpResponse(json.dumps({"messages":_msgs}), mimetype="aplication/json")
 
     '''
-        curl -X POST -H "Content-Type: application/json" -d '{"action":"remove"}' http://localhost:8000/message/1/
+        curl -X POST -H "Content-Type: application/json" -d '{"action":"true", "message":10}' http://localhost:8000/messages/1/
     '''
     def post(self, *args, **kwargs):
         error = []
         try:
             data=json.loads(self.request.body)
-            _msg = Notification.objects.get(pk=self.kwargs['id_msg'])
+            _user = UserGame.objects.get(pk=self.kwargs['id'])
+            _msg = Notification.objects.get(pk=data['message'], user=_user)
             action = data['action']
-            if action == "remove" or action == "Remove":
+            if action == "True" or action == "true":
                 _msg.delete()
+                data = json.dumps({"response":"OK" })
             else:
-                pass
-            data = json.dumps({"response":"OK" })
+                data = {"message":json_repr(_msg)}
 
         except:
             error.append("Erro ao processar solicitacao")
-            pass
 
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
-           return HttpResponse(data ,mimetype="aplication/json")
+           return HttpResponse(json.dumps(data) ,mimetype="aplication/json")
 
 
 '''
@@ -429,15 +424,13 @@ class FriendsView(View):
         error = []
         try:
             user = UserGame.objects.get(pk=idUser)
-            #itens = Item.objects.filter(user=user)
             friends = Friend.objects.filter(user=user)
             _friends = json.dumps([dict(friend=json_repr(pn.friend.name)) for pn in friends])
-            data = json.dumps({"friends":_friends })
+            data = json.dumps({"friends":_friends})
         except:
-            error.append(sys.exc_info()[0])
-
+            error.append("Ocorreu um erro ao recuperar seus amigos")
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
@@ -470,10 +463,9 @@ class FriendsView(View):
 
         except:
             error.append("Erro ao processar solicitacao")
-            pass
 
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
@@ -487,15 +479,13 @@ class ShowEnemyView(View):
         error = []
         try:
             user = UserGame.objects.get(pk=idUser)
-            #itens = Item.objects.filter(user=user)
             _user = json_repr(user)
             data = json.dumps({"user":_user })
 
         except:
-            error.append(sys.exc_info()[0])
-
+            error.append("Ocorreu um erro ao recuperar o inimigo")
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
             return HttpResponse(data ,mimetype="aplication/json")
 
@@ -534,8 +524,6 @@ class SetItemView(View):
                     else:
                         error.append("Tipo do item incorreto")
 
-                #except DoesNotExit:
-                #    error.append("Item nao existe para este usuario")
                 except:
                     pass
             else:
@@ -560,18 +548,15 @@ class SetItemView(View):
                     else:
                         error.append("Tipo do item incorreto")
 
-                #except DoesNotExit:
-                #    error.append("Item nao existe para este usuario")
                 except:
                     pass
             data = json.dumps({"response":"OK" })
 
         except:
             error.append("Erro ao processar solicitacao")
-            pass
 
         if error:
-            return HttpResponse(json.dumps(error), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
            return HttpResponse(data ,mimetype="aplication/json")
 
@@ -869,4 +854,3 @@ def processBattle(req):
     msg = "Uma batalha aconteceu, veja o resultado!"
     createNotification(msg, req.challenging)
     createNotification(msg, req.challenged)
-
