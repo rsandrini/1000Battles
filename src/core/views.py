@@ -44,13 +44,15 @@ class LoginView(View):
 '''
 class RegisterView(View):
     def post(self, *args, **kwargs):
+	error = []
         try:
-            error = []
+	    #error.append(self.request.body)
             data=json.loads(self.request.body)
             if (data['username'] == "" or data['email'] == ""
-                and data['password'] == "" and data['name'] == ""):
+                or data['password'] == "" or data['name'] == ""):
                 error.append("Dados incompletos")
-            elif UserLogin.objects.filter(Q(username=data['username']) | Q(email=data['email'])).count() == 0:
+            elif UserLogin.objects.filter(
+		    Q(username=data['username']) | Q(email=data['email'])).count() == 0:
                 ug = UserGame(name=data['name'])
                 ug.save()
 
@@ -60,7 +62,10 @@ class RegisterView(View):
             else:
                 error.append("Usuario ou email ja registrados")
         except:
-            error.append("Ocorreu um erro")
+	    error.append(sys.exc_info()[0])
+	    error.append(sys.exc_info()[1])
+	    return HttpResponse(error)
+            #error.append("Ocorreu um erro")
         if error:
             return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
