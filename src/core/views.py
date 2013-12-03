@@ -29,12 +29,13 @@ class LoginView(View):
             data = json.loads(self.request.body)
             if UserLogin.objects.filter(username=data['username'], password=data['password']).count() == 1:
                 ul = UserLogin.objects.get(username=data['username'], password=data['password'])
-                return HttpResponse(json.dumps({"response":"OK"}), mimetype='aplication/json')
+                return HttpResponse(json.dumps({"response":True}), mimetype='aplication/json')
             else:
                 error.append("Login ou senha incorretos")
                 return HttpResponse(json.dumps({"response":error}), mimetype='aplication/json')
 
         except:
+	    raise
             error.append("Login ou senha incorretos - Fail")
             return HttpResponse(json.dumps({"response":error}), mimetype='aplication/json')
 
@@ -69,7 +70,7 @@ class RegisterView(View):
         if error:
             return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
-            return HttpResponse(json.dumps({"response":"OK"}), mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":True}), mimetype="aplication/json")
 
 
 '''
@@ -205,7 +206,7 @@ class BattleRequisitionView(View):
         if error:
             return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
-            return HttpResponse(json.dumps({"response":"OK"}) ,mimetype="aplication/json")
+            return HttpResponse(json.dumps({"response":True}) ,mimetype="aplication/json")
 '''
     Accept or decline battle requisition
 
@@ -270,7 +271,7 @@ class BattleRequisitionConfirmView(View):
                     req.save()
                     msg = "O jogador %s nao aceitou sua solicitacao de batalha", req.challenged
                     createNotification(msg, req.challenging)
-                result = {"response":"OK"}
+                result = {"response":True}
         except:
             error.append("Ocorreu um problema")
 
@@ -407,7 +408,7 @@ class MessageView(View):
             action = data['action']
             if action == "True" or action == "true":
                 _msg.delete()
-                data = json.dumps({"response":"OK" })
+                data = json.dumps({"response":True })
             else:
                 data = {"message":json_repr(_msg)}
 
@@ -464,7 +465,7 @@ class FriendsView(View):
                 else:
                     error.append("Amigo nao existe")
 
-            data = json.dumps({"response":"OK" })
+            data = json.dumps({"response":True })
 
         except:
             error.append("Erro ao processar solicitacao")
@@ -555,7 +556,7 @@ class SetItemView(View):
 
                 except:
                     pass
-            data = json.dumps({"response":"OK" })
+            data = json.dumps({"response":True })
 
         except:
             error.append("Erro ao processar solicitacao")
