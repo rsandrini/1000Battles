@@ -29,7 +29,7 @@ class LoginView(View):
             data = json.loads(self.request.body)
             if UserLogin.objects.filter(username=data['username'], password=data['password']).count() == 1:
                 ul = UserLogin.objects.get(username=data['username'], password=data['password'])
-                return HttpResponse(json.dumps({"response":True}), mimetype='aplication/json')
+                return HttpResponse(json.dumps({"response":True, "iduser":ul.id}), mimetype='aplication/json')
             else:
                 error.append("Login ou senha incorretos")
                 return HttpResponse(json.dumps({"response":error}), mimetype='aplication/json')
