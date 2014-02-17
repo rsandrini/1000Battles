@@ -23,6 +23,7 @@ urlpatterns = patterns('',
     url(r'^ranking/$', ShowRankingView.as_view(), name="ranking"),
     url(r'^setitem/(?P<id>\d+)/$', SetItemView.as_view(), name="set_item"),
     url(r'^friends/(?P<id>\d+)/$', FriendsView.as_view(), name="friends"),
+    url(r'^all_players/$', AllUsersView.as_view(), name="allusers"),
     url(r'^player/(?P<id>\d+)/$', ShowEnemyView.as_view(), name="friends"),
     url(r'^messages/(?P<id>\d+)/$', MessageView.as_view(), name="messages"),
 )

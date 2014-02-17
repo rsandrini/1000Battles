@@ -424,6 +424,47 @@ class MessageView(View):
 '''
     curl -X GET -H "Content-Type: application/json"  http://localhost:8000/friends/1/
 '''
+class AllUsersView(View):
+    def get(self, *args, **kwargs):
+        error = []
+        try:
+            user = UserGame.objects.all()
+            _users = json.dumps([dict(user=json_repr(pn.name)) for pn in user])
+            data = json.dumps({"users":_users})
+        except:
+            error.append("Ocorreu um erro ao recuperar a lista de jogadores")
+	    raise
+	if error:
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
+        else:
+            return HttpResponse(data ,mimetype="aplication/json")
+
+    def post(self, *args, **kwargs):
+	error = []
+        try:
+            data=json.loads(self.request.body)
+            if UserGame.objects.filter(name=data['namefriend']).count() == 1:
+	        _friend = UserGame.objects.get(name=data['namefriend'])
+
+            else:
+                error.append("Amigo nao existe")
+
+            data = json.dumps({"id":_friend.id })
+
+        except ex:
+	    error.append(ex)
+            #error.append("Erro ao processar solicitacao")
+
+        if error:
+            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
+        else:
+            return HttpResponse(data ,mimetype="aplication/json")
+
+
+
+'''
+    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/friends/1/
+'''
 class FriendsView(View):
     def get(self, *args, **kwargs):
         idUser = self.kwargs['id']
