@@ -385,7 +385,7 @@ class MessageView(View):
             for i in msgs:
                 _msgs.append(dict(item=json_repr(i)))
 
-            data = json.dumps({"messages":_msgs })
+            data = json.dumps({"messages":str(_msgs) })
 
         except:
             raise
@@ -394,7 +394,7 @@ class MessageView(View):
         if error:
             return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
         else:
-            return HttpResponse(json.dumps({"messages":_msgs}), mimetype="aplication/json")
+            return HttpResponse(data, mimetype="aplication/json")
 
     '''
         curl -X POST -H "Content-Type: application/json" -d '{"action":"true", "message":10}' http://localhost:8000/messages/1/
