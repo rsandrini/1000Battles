@@ -35,7 +35,7 @@ class LoginView(View):
                 return HttpResponse(json.dumps({"response":error}), mimetype='aplication/json')
 
         except:
-	    raise
+	    #raise
             error.append("Login ou senha incorretos - Fail")
             return HttpResponse(json.dumps({"response":error}), mimetype='aplication/json')
 
