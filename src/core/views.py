@@ -67,35 +67,38 @@ class LoginView(View):
 
     @json_response
     def get(self, *args, **kwargs):
+	result = ""
         try:
             error = []
 	    data = self.request.REQUEST
             if UserLogin.objects.filter(username=data["username"], password=data['password']).count() == 1:
                 ul = UserLogin.objects.get(username=data['username'], password=data['password'])
-		_json =  json.dumps({"response":True, "iduser":ul.id})
-		if 'callback' not in data:
-	            return _json
-		else:
-		    return HttpResponse(_json, mimetype="aplication/json")
-            else:
-                error.append("Login ou senha incorretos")
-                return json.dumps({"response":error})
-
+		result =  json.dumps({"response":True, "iduser":ul.id})
+	    else:
+        	error.append("Login ou senha incorretos")
+	        result = json.dumps({"response":error})
         except:
 	    #raise
             error.append("Login ou senha incorretos - Fail")
-            return json.dumps({"response":error})
+            result = json.dumps({"response":error})
+	
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 
 '''
     curl -X POST -H "Content-Type: application/json" -d '{"username":"", "password":"", "email":"", "name":""}' http://localhost:8000/register/
 '''
 class RegisterView(View):
-    def post(self, *args, **kwargs):
+    @json_response
+    def get(self, *args, **kwargs):
 	error = []
+	result = ""
         try:
 	    #error.append(self.request.body)
-            data=json.loads(self.request.body)
+            data=self.request.REQUEST
             if (data['username'] == "" or data['email'] == ""
                 or data['password'] == "" or data['name'] == ""):
                 error.append("Dados incompletos")
@@ -112,43 +115,56 @@ class RegisterView(View):
         except:
 	    error.append(sys.exc_info()[0])
 	    error.append(sys.exc_info()[1])
-	    return HttpResponse(error)
+	    result = error
+	    #return HttpResponse(error)
             #error.append("Ocorreu um erro")
         if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
+            result = json.dumps({"response":error})
         else:
-            return HttpResponse(json.dumps({"response":True}), mimetype="aplication/json")
+            result = json.dumps({"response":True})
+
+		
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 
 '''
     curl -X GET -H "Content-Type: application/json" http://localhost:8000/dashboard/1/
 '''
 class DashboardView(View):
+    @json_response
     def get(self, *args, **kwargs):
+	result = ""
         idUser = self.kwargs['id']
         error = []
+	data = self.request.REQUEST
         try:
             user = UserGame.objects.get(pk=idUser)
             friends = Friend.objects.filter(user=user)
             _user = json_repr(user)
             _friends = json.dumps([dict(friend=json_repr(pn.friend.name)) for pn in friends])
-            data = json.dumps({"user":_user, "friends":_friends })
-
+            result = json.dumps({"user":_user, "friends":_friends })
         except:
             error.append("Ocorreu um erro ao buscar os dados")
+	    result = json.dumps({"response":error})
 
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 '''
     curl -X GET -H "Content-Type: application/json" http://localhost:8000/battles/1/
 '''
 class BattleView(View):
+    @json_response
     def get(self, *args, **kwargs):
         idUser = self.kwargs['id']
         error = []
+	data = self.request.REQUEST
+	result = ""
         try:
             user = UserGame.objects.get(pk=idUser)
             reBattles = RequisitionBattle.objects.filter(Q(challenging=user) | Q(challenged=user), status="F")
@@ -156,23 +172,26 @@ class BattleView(View):
             for i in reBattles:
                 _battles.append(dict(battle=json_repr(Battle.objects.get(requisitionBattle=i))))
 
-            data = json.dumps({"battles":_battles })
+            result = json.dumps({"battles":_battles })
         except:
             error.append(sys.exc_info()[0])
+	    result = json.dumps({"response":error})
 
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 
 '''
   curl -X GET -H "Content-Type: application/json" http://localhost:8000/battles_requisition/1/
 '''
 class ShowBattlesRequisitionView(View):
+    @json_response
     def get(self, *args, **kwargs):
         idUser = self.kwargs['id']
         error = []
+	data = self.request.REQUEST
         try:
             user = UserGame.objects.get(pk=idUser)
             reBattles = RequisitionBattle.objects.filter(Q(challenging=user) | Q(challenged=user), status="W")
@@ -180,14 +199,16 @@ class ShowBattlesRequisitionView(View):
             for i in reBattles:
                 _battles.append(dict(battle=json_repr(i)))
 
-            data = json.dumps({"battles_requisition":_battles })
+            result = json.dumps({"battles_requisition":_battles })
         except:
             error.append("Ocorreu um erro ao recuperar")
+	    result = json.dumps({"response":error})
 
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
+
 
 '''
     curl -X POST -H "Content-Type: application/json" -d '{"challenging":1, "challenged":2}' http://localhost:8000/battle_challenge/
@@ -195,18 +216,19 @@ class ShowBattlesRequisitionView(View):
 
 '''
 class BattleRequisitionView(View):
-    def post(self, *args, **kwargs):
+    @json_response
+    def get(self, *args, **kwargs):
         error = []
+	data = self.request.REQUEST
+	result = ""
         try:
-            data=json.loads(self.request.body)
-            print data
             challenging = UserGame.objects.get(pk=data['challenging'])
-            if data['challenged'] != 0:
+            #return data['challenged']
+	    if not data['challenged'] == "0":
                 challenged = UserGame.objects.get(pk=data['challenged'])
-                print "Challenged select"
                 if RequisitionBattle.objects.filter(challenged=challenged, challenging=challenging, status="W").count() == 1:
                     error.append("Ja existe uma requisicao de batalha criada")
-                    return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
+
             else:
                 challenged = 0
 
@@ -234,7 +256,7 @@ class BattleRequisitionView(View):
 
             challenged = randomOpponent(challenging)
 
-            if not challenged == 0:
+            if not challenged == "0":
                 rb = RequisitionBattle(challenging=challenging, challenged=challenged,
                                         challenging_chest=_chest,
                                         challenging_leg=_leg,
@@ -248,38 +270,54 @@ class BattleRequisitionView(View):
                 error.append("Nao foi possivel encontrar um oponente - fudeu")
 
         except:
+	    raise
             error.append("Ocorreu um erro -  tente novamente")
 
         if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
+	    result = json.dumps({"response":error})
         else:
-            return HttpResponse(json.dumps({"response":True}) ,mimetype="aplication/json")
+	    result = json.dumps({"response":True})
+
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
+
 '''
     Accept or decline battle requisition
 
     curl -X POST -H "Content-Type: application/json" -d '{"accept":"True"}' http://localhost:8000/battle_requisition_confirm/3/
 '''
-class BattleRequisitionConfirmView(View):
-
+class BattleRequisitionGetView(View):
+    @json_response
     def get(self, *args, **kwargs):
         error = []
+	result = ""
+	data = self.request.REQUEST
         try:
             reBattle = RequisitionBattle.objects.get(pk=self.kwargs['id_requisition'], status="W")
-            data = json.dumps({"requisition": json_repr(reBattle) })
+            result = json.dumps({"requisition": json_repr(reBattle) })
         except RequisitionBattle.DoesNotExist:
             error.append("Nao foi possivel recuperar esta requisicao pois a batalha ja foi aceita")
+	    result = json.dumps({"response":error})
+
         except:
             error.append("Ocorreu um erro ao recuperar os dados")
+	    result = json.dumps({"response":error})
 
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
-    def post(self, *args, **kwargs):
+
+class BattleRequisitionConfirmView(View):
+    @json_response
+    def get(self, *args, **kwargs):
         error = []
+	result = ""
+	data = self.request.REQUEST
         try:
-            data=json.loads(self.request.body)
             req = RequisitionBattle.objects.get(pk=self.kwargs['id_requisition'])
             if req.status == "W":
                 if data['accept'] == 'true' or data['accept'] == 'True':
@@ -310,7 +348,6 @@ class BattleRequisitionConfirmView(View):
                     req.challenged_head = _challenged_head
                     req.save()
 
-                    print 'ACCEPTED MOTHERFUCK!'
                     processBattle(req)
 
                 else:
@@ -321,19 +358,22 @@ class BattleRequisitionConfirmView(View):
                 result = {"response":True}
         except:
             error.append("Ocorreu um problema")
+	    result = json.dumps({"response":error})
 
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(json.dumps(result) ,mimetype="aplication/json")
-
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 '''
     curl -X GET -H "Content-Type: application/json"  http://localhost:8000/battle/1/
 '''
 class ShowBattleView(View):
+    @json_response
     def get(self, *args, **kwargs):
         error = []
+	data = self.request.REQUEST
+	result = ""
         try:
             _battle = Battle.objects.get(pk=self.kwargs['id_battle'])
             _req = RequisitionBattle.objects.get(pk=_battle.requisitionBattle.pk)
@@ -343,44 +383,51 @@ class ShowBattleView(View):
             for i in logs:
                 _itens.append(dict(log=json_repr(i)))
 
-            data = json.dumps({"battle":json_repr(_battle), "details":json_repr(_req), "log":_itens })
+            result = json.dumps({"battle":json_repr(_battle), "details":json_repr(_req), "log":_itens })
 
         except:
             error.append("Nao foi possivel recuperar esta batalha")
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
+	    result = json.dumps({"response":error})
 
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 '''
     curl -X GET -H "Content-Type: application/json"  http://localhost:8000/all_itens/
 '''
 class ShowAllItensView(View):
+    @json_response
     def get(self, *args, **kwargs):
         error = []
+	result = ""
+	data = self.request.REQUEST
         try:
             itens = Item.objects.all()
             _itens = []
             for i in itens:
                 _itens.append(dict(item=json_repr(i)))
 
-            data = json.dumps({"itens":_itens })
+            result = json.dumps({"itens":_itens })
         except:
             error.append("Nao foi possivel recuperar os itens")
+  	    result = json.dumps({"response":error})
 
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
-
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 '''
     curl -X GET -H "Content-Type: application/json"  http://localhost:8000/my_itens/1/
 '''
 class ShowMyItensView(View):
+    @json_response
     def get(self, *args, **kwargs):
         error = []
+	result = ""
+	data = self.request.REQUEST
         try:
             idUser = self.kwargs['id']
             _user = UserGame.objects.get(pk=idUser)
@@ -388,43 +435,50 @@ class ShowMyItensView(View):
             for i in _user.items.all():
                 _itens.append(dict(item=json_repr(i)))
 
-            data = json.dumps({"my_itens":_itens })
+            result = json.dumps({"my_itens":_itens })
 
         except:
             error.append("Nao foi possivel recuperar seus itens")
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
+  	    result = json.dumps({"response":error})
 
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 '''
     curl -X GET -H "Content-Type: application/json"  http://localhost:8000/ranking/
 '''
 class ShowRankingView(View):
+    @json_response
     def get(self, *args, **kwargs):
         error = []
+	result = ""
+	data = self.request.REQUEST
         try:
             users = UserGame.objects.all().order_by('-reputation')
             _itens = []
             for index, i in enumerate(users):
                 _itens.append({"player":i.name, "reputation":i.reputation, "position":index+1 })
 
-            data = json.dumps({"ranking":_itens })
+            result = json.dumps({"ranking":_itens })
 
         except:
             error.append(sys.exc_info()[0])
+	    result = json.dumps({"response":error})
 
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 
 class MessageView(View):
-
+    @json_response
     def get(self, *args, **kwargs):
         error = []
+	result = ""
+	data = self.request.REQUEST
         try:
             _user = UserGame.objects.get(pk=self.kwargs['id'])
             msgs = Notification.objects.filter(user=_user)
@@ -432,111 +486,131 @@ class MessageView(View):
             for i in msgs:
                 _msgs.append(dict(item=json_repr(i)))
 
-            data = json.dumps({"messages":str(_msgs) })
+            result = json.dumps({"messages":str(_msgs) })
 
         except:
-            raise
             error.append("Erro ao processar solicitacao")
+	    result = json.dumps({"response":error})
 
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data, mimetype="aplication/json")
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
     '''
         curl -X POST -H "Content-Type: application/json" -d '{"action":"true", "message":10}' http://localhost:8000/messages/1/
     '''
-    def post(self, *args, **kwargs):
+class MessageOperationView(View):
+    @json_response
+    def get(self, *args, **kwargs):
         error = []
+	result = ""
+	data = self.request.REQUEST
         try:
-            data=json.loads(self.request.body)
             _user = UserGame.objects.get(pk=self.kwargs['id'])
             _msg = Notification.objects.get(pk=data['message'], user=_user)
             action = data['action']
             if action == "True" or action == "true":
                 _msg.delete()
-                data = json.dumps({"response":True })
+                result = json.dumps({"response":True })
             else:
-                data = {"message":json_repr(_msg)}
+                result = {"message":json_repr(_msg)}
 
         except:
             error.append("Erro ao processar solicitacao")
+	    result = json.dumps({"response":error})
 
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-           return HttpResponse(json.dumps(data) ,mimetype="aplication/json")
-
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 '''
     curl -X GET -H "Content-Type: application/json"  http://localhost:8000/friends/1/
 '''
 class AllUsersView(View):
+    @json_response
     def get(self, *args, **kwargs):
         error = []
+	result = ""
+	data = self.request.REQUEST
         try:
             user = UserGame.objects.all()
             _users = json.dumps([dict(user=json_repr(pn.name)) for pn in user])
-            data = json.dumps({"users":_users})
+            result = json.dumps({"users":_users})
         except:
             error.append("Ocorreu um erro ao recuperar a lista de jogadores")
-	    raise
-	if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
+    	    result = json.dumps({"response":error})
 
-    def post(self, *args, **kwargs):
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
+
+
+class GetPlayerIdView(View):
+    @json_response
+    def get(self, *args, **kwargs):
 	error = []
+	result = ""
+	data = self.request.REQUEST
         try:
-            data=json.loads(self.request.body)
-            if UserGame.objects.filter(name=data['namefriend']).count() == 1:
-	        _friend = UserGame.objects.get(name=data['namefriend'])
+            if UserGame.objects.filter(name=data['nameplayer']).count() == 1:
+	        _friend = UserGame.objects.get(name=data['nameplayer'])
 
             else:
                 error.append("Amigo nao existe")
+		result = json.dumps({"response":error})
 
-            data = json.dumps({"id":_friend.id })
+            result = json.dumps({"id":_friend.id })
 
-        except ex:
-	    error.append(ex)
-            #error.append("Erro ao processar solicitacao")
+        except:
+	    error.append("Ocorreu um erro")
+	    result = json.dumps({"response":error})
 
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
-
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 
 '''
     curl -X GET -H "Content-Type: application/json"  http://localhost:8000/friends/1/
 '''
 class FriendsView(View):
+    @json_response
     def get(self, *args, **kwargs):
         idUser = self.kwargs['id']
         error = []
+	result = ""
+	data = self.request.REQUEST
         try:
             user = UserGame.objects.get(pk=idUser)
             friends = Friend.objects.filter(user=user)
             _friends = json.dumps([dict(friend=json_repr(pn.friend.name)) for pn in friends])
-            data = json.dumps({"friends":_friends})
+            result = json.dumps({"friends":_friends})
         except:
             error.append("Ocorreu um erro ao recuperar seus amigos")
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
+ 	    result = json.dumps({"response":error})
+
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
+
 
     '''
         curl -X POST -H "Content-Type: application/json" -d '{"friend":3, "action:"True""}' http://localhost:8000/friends/1/
 
         { "friend":"ID", "action":"True" } / { "friend":"ID", "action":"False" }
     '''
-    def post(self, *args, **kwargs):
+class FriendManagerView(View):
+    @json_response
+    def get(self, *args, **kwargs):
         error = []
+	result = ""
+	data = self.request.REQUEST
         try:
-            data=json.loads(self.request.body)
             _friend = UserGame.objects.get(pk=data['friend'])
             _user = UserGame.objects.get(pk=self.kwargs['id'])
             add = data['action']
@@ -553,35 +627,40 @@ class FriendsView(View):
                 else:
                     error.append("Amigo nao existe")
 
-            data = json.dumps({"response":True })
+            result = json.dumps({"response":True })
 
         except:
             error.append("Erro ao processar solicitacao")
+ 	    result = json.dumps({"response":error})
 
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
-
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 '''
     curl -X GET -H "Content-Type: application/json"  http://localhost:8000/player/2/
 '''
 class ShowEnemyView(View):
+    @json_response
     def get(self, *args, **kwargs):
         idUser = self.kwargs['id']
         error = []
+	result = ""
+	data = self.request.REQUEST
         try:
             user = UserGame.objects.get(pk=idUser)
-            _user = json_repr(user)
-            data = json.dumps({"user":_user })
+            result = json.dumps({"user":json_repr(user)})
 
         except:
+	    raise
             error.append("Ocorreu um erro ao recuperar o inimigo")
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-            return HttpResponse(data ,mimetype="aplication/json")
+ 	    result = json.dumps({"response":error})
+
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 
 class SetItemView(View):
@@ -589,10 +668,12 @@ class SetItemView(View):
     '''
         curl -X POST -H "Content-Type: application/json" -d '{"item":1, "action:"True""}' http://localhost:8000/setitem/1/
     '''
-    def post(self, *args, **kwargs):
+    @json_response
+    def get(self, *args, **kwargs):
         error = []
+	data = self.request.REQUEST
+	result = ""
         try:
-            data=json.loads(self.request.body)
             _item = Item.objects.get(pk=data['item'])
             _user = UserGame.objects.get(pk=self.kwargs['id'])
             add = data['action']
@@ -617,6 +698,7 @@ class SetItemView(View):
                         u.save()
                     else:
                         error.append("Tipo do item incorreto")
+			result = json.dumps({"response":error})
 
                 except:
                     pass
@@ -641,18 +723,19 @@ class SetItemView(View):
                         u.save()
                     else:
                         error.append("Tipo do item incorreto")
-
+			result = json.dumps({"response":error})
                 except:
                     pass
-            data = json.dumps({"response":True })
+            result = json.dumps({"response":True })
 
         except:
             error.append("Erro ao processar solicitacao")
+ 	    result = json.dumps({"response":error})
 
-        if error:
-            return HttpResponse(json.dumps({"response":error}), mimetype="aplication/json")
-        else:
-           return HttpResponse(data ,mimetype="aplication/json")
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 
 def verifyEffect(_elem_attacker, _elem_defense):
