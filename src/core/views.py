@@ -2,42 +2,89 @@
 
 from django.views.generic import View
 from django.http import HttpResponse
+from django.http import HttpResponseRedirect
 from django.db.models import Q
 from core.models import *
 from core.utils import *
 import json
 import sys
 import random
+from django.utils import simplejson
+
+def json_response(func):
+    """
+    A decorator thats takes a view response and turns it
+    into json. If a callback is added through GET or POST
+    the response is JSONP.
+    """
+    def decorator(self, *args, **kwargs):
+        objects = func(self, *args, **kwargs)
+        if isinstance(objects, HttpResponse):
+            return objects
+        try:
+            data = simplejson.dumps(objects)
+            if 'callback' in self.request.REQUEST:
+                # a jsonp response!
+                data = '%s(%s);' % (self.request.REQUEST['callback'], data)
+                return HttpResponse(data, "text/javascript")
+        except:
+	    raise
+            data = simplejson.dumps(str(objects))
+        return HttpResponse(data, "application/json")
+    return decorator
 
 
 class IndexView(View):
+    @json_response
     def get(self, *args, **kwargs):
-        return HttpResponse(json.dumps({"response":"OK"}),
-            mimetype="application/json")
+        return json.dumps({"response":self.request.REQUEST["username"]})
+
+class JsonpView(View):
+    @json_response
+    def get(self, *args, **kwargs):
+	try:
+	    data = self.request.REQUEST["username"]
+	    return json.dumps({"response": data})
+	except:
+   	    raise
+
+class getPostView(View):
+    @json_response
+    def get(self, *args, **kwargs):
+	try:
+	    return HttpResponseRedirect('/', self)
+            #return {"user":self.kwargs["id"]}
+	except:
+	    raise
 
 
 '''
     curl -X POST -H "Content-Type: application/json" -d '{"username":"", "password":""}' http://localhost:8000/login
 '''
 class LoginView(View):
-    def get(self, *args, **kwargs):
-        return HttpResponse(json.dumps({"response":"Tente um POST"}), mimetype="application/json")
+    #def get(self, *args, **kwargs):
+    #    return HttpResponse(json.dumps({"response":"Tente um POST"}), mimetype="application/json")
 
-    def post(self, *args, **kwargs):
+    @json_response
+    def get(self, *args, **kwargs):
         try:
             error = []
-            data = json.loads(self.request.body)
-            if UserLogin.objects.filter(username=data['username'], password=data['password']).count() == 1:
+	    data = self.request.REQUEST
+            if UserLogin.objects.filter(username=data["username"], password=data['password']).count() == 1:
                 ul = UserLogin.objects.get(username=data['username'], password=data['password'])
-                return HttpResponse(json.dumps({"response":True, "iduser":ul.id}), mimetype='aplication/json')
+		_json =  json.dumps({"response":True, "iduser":ul.id})
+		if 'callback' not in data:
+	            return _json
+		else:
+		    return HttpResponse(_json, mimetype="aplication/json")
             else:
                 error.append("Login ou senha incorretos")
-                return HttpResponse(json.dumps({"response":error}), mimetype='aplication/json')
+                return json.dumps({"response":error})
 
         except:
 	    #raise
             error.append("Login ou senha incorretos - Fail")
-            return HttpResponse(json.dumps({"response":error}), mimetype='aplication/json')
+            return json.dumps({"response":error})
 
 
 '''
@@ -901,3 +948,5 @@ def processBattle(req):
     msg = "Uma batalha aconteceu, veja o resultado!"
     createNotification(msg, req.challenging)
     createNotification(msg, req.challenged)
+
+
