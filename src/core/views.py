@@ -37,34 +37,15 @@ def json_response(func):
 class IndexView(View):
     @json_response
     def get(self, *args, **kwargs):
-        return json.dumps({"response":self.request.REQUEST["username"]})
-
-class JsonpView(View):
-    @json_response
-    def get(self, *args, **kwargs):
-	try:
-	    data = self.request.REQUEST["username"]
-	    return json.dumps({"response": data})
-	except:
-   	    raise
-
-class getPostView(View):
-    @json_response
-    def get(self, *args, **kwargs):
-	try:
-	    return HttpResponseRedirect('/', self)
-            #return {"user":self.kwargs["id"]}
-	except:
-	    raise
+	data = self.request.REQUEST
+        result = json.dumps({"response":"OK"})
+	if 'callback' in data:
+	    return result
+	else:
+	    return HttpResponse(result, mimetype="aplication/json")
 
 
-'''
-    curl -X POST -H "Content-Type: application/json" -d '{"username":"", "password":""}' http://localhost:8000/login
-'''
 class LoginView(View):
-    #def get(self, *args, **kwargs):
-    #    return HttpResponse(json.dumps({"response":"Tente um POST"}), mimetype="application/json")
-
     @json_response
     def get(self, *args, **kwargs):
 	result = ""
@@ -78,7 +59,7 @@ class LoginView(View):
         	error.append("Login ou senha incorretos")
 	        result = json.dumps({"response":error})
         except:
-	    #raise
+	    raise
             error.append("Login ou senha incorretos - Fail")
             result = json.dumps({"response":error})
 	
@@ -87,10 +68,6 @@ class LoginView(View):
 	else:
 	    return HttpResponse(result, mimetype="aplication/json")
 
-
-'''
-    curl -X POST -H "Content-Type: application/json" -d '{"username":"", "password":"", "email":"", "name":""}' http://localhost:8000/register/
-'''
 class RegisterView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -130,9 +107,6 @@ class RegisterView(View):
 	    return HttpResponse(result, mimetype="aplication/json")
 
 
-'''
-    curl -X GET -H "Content-Type: application/json" http://localhost:8000/dashboard/1/
-'''
 class DashboardView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -155,9 +129,6 @@ class DashboardView(View):
 	else:
 	    return HttpResponse(result, mimetype="aplication/json")
 
-'''
-    curl -X GET -H "Content-Type: application/json" http://localhost:8000/battles/1/
-'''
 class BattleView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -183,9 +154,6 @@ class BattleView(View):
 	    return HttpResponse(result, mimetype="aplication/json")
 
 
-'''
-  curl -X GET -H "Content-Type: application/json" http://localhost:8000/battles_requisition/1/
-'''
 class ShowBattlesRequisitionView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -210,11 +178,6 @@ class ShowBattlesRequisitionView(View):
 	    return HttpResponse(result, mimetype="aplication/json")
 
 
-'''
-    curl -X POST -H "Content-Type: application/json" -d '{"challenging":1, "challenged":2}' http://localhost:8000/battle_challenge/
-    curl -X POST -H "Content-Type: application/json" -d '{"challenging":1, "challenged":0}' http://localhost:8000/battle_challenge/
-
-'''
 class BattleRequisitionView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -283,11 +246,6 @@ class BattleRequisitionView(View):
 	else:
 	    return HttpResponse(result, mimetype="aplication/json")
 
-'''
-    Accept or decline battle requisition
-
-    curl -X POST -H "Content-Type: application/json" -d '{"accept":"True"}' http://localhost:8000/battle_requisition_confirm/3/
-'''
 class BattleRequisitionGetView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -320,7 +278,7 @@ class BattleRequisitionConfirmView(View):
         try:
             req = RequisitionBattle.objects.get(pk=self.kwargs['id_requisition'])
             if req.status == "W":
-                if data['accept'] == 'true' or data['accept'] == 'True':
+                if data['action'] == 'true' or data['action'] == 'True':
                     challenged = UserGame.objects.get(pk=req.challenged.pk)
                     if challenged.chest:
                         _challenged_chest = challenged.chest
@@ -355,8 +313,11 @@ class BattleRequisitionConfirmView(View):
                     req.save()
                     msg = "O jogador %s nao aceitou sua solicitacao de batalha", req.challenged
                     createNotification(msg, req.challenging)
-                result = {"response":True}
+                result = json.dumps({"response":True})
+	    else:
+		result = json.dumps({"response": "requisition not found"})
         except:
+	    raise
             error.append("Ocorreu um problema")
 	    result = json.dumps({"response":error})
 
@@ -365,9 +326,6 @@ class BattleRequisitionConfirmView(View):
 	else:
 	    return HttpResponse(result, mimetype="aplication/json")
 
-'''
-    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/battle/1/
-'''
 class ShowBattleView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -394,9 +352,6 @@ class ShowBattleView(View):
 	else:
 	    return HttpResponse(result, mimetype="aplication/json")
 
-'''
-    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/all_itens/
-'''
 class ShowAllItensView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -419,9 +374,6 @@ class ShowAllItensView(View):
 	else:
 	    return HttpResponse(result, mimetype="aplication/json")
 
-'''
-    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/my_itens/1/
-'''
 class ShowMyItensView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -446,9 +398,6 @@ class ShowMyItensView(View):
 	else:
 	    return HttpResponse(result, mimetype="aplication/json")
 
-'''
-    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/ranking/
-'''
 class ShowRankingView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -497,9 +446,6 @@ class MessageView(View):
 	else:
 	    return HttpResponse(result, mimetype="aplication/json")
 
-    '''
-        curl -X POST -H "Content-Type: application/json" -d '{"action":"true", "message":10}' http://localhost:8000/messages/1/
-    '''
 class MessageOperationView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -525,9 +471,6 @@ class MessageOperationView(View):
 	else:
 	    return HttpResponse(result, mimetype="aplication/json")
 
-'''
-    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/friends/1/
-'''
 class AllUsersView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -573,10 +516,6 @@ class GetPlayerIdView(View):
 	else:
 	    return HttpResponse(result, mimetype="aplication/json")
 
-
-'''
-    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/friends/1/
-'''
 class FriendsView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -599,11 +538,6 @@ class FriendsView(View):
 	    return HttpResponse(result, mimetype="aplication/json")
 
 
-    '''
-        curl -X POST -H "Content-Type: application/json" -d '{"friend":3, "action:"True""}' http://localhost:8000/friends/1/
-
-        { "friend":"ID", "action":"True" } / { "friend":"ID", "action":"False" }
-    '''
 class FriendManagerView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -638,9 +572,6 @@ class FriendManagerView(View):
 	else:
 	    return HttpResponse(result, mimetype="aplication/json")
 
-'''
-    curl -X GET -H "Content-Type: application/json"  http://localhost:8000/player/2/
-'''
 class ShowEnemyView(View):
     @json_response
     def get(self, *args, **kwargs):
@@ -665,9 +596,6 @@ class ShowEnemyView(View):
 
 class SetItemView(View):
 
-    '''
-        curl -X POST -H "Content-Type: application/json" -d '{"item":1, "action:"True""}' http://localhost:8000/setitem/1/
-    '''
     @json_response
     def get(self, *args, **kwargs):
         error = []

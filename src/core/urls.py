@@ -30,7 +30,5 @@ urlpatterns = patterns('',
     url(r'^player/(?P<id>\d+)/$', ShowEnemyView.as_view(), name="friends"),
     url(r'^messages/(?P<id>\d+)/$', MessageView.as_view(), name="messages"),
     url(r'^operation_message/(?P<id>\d+)/$', MessageOperationView.as_view(), name="operationmessage"),
-    url(r'^jsonp/(?P<id>\d+)/$', JsonpView.as_view(), name="jsonp"),
-    url(r'^getPost/$', getPostView.as_view(), name="getpost"),
 
 )
