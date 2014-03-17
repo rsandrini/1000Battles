@@ -54,7 +54,7 @@ class LoginView(View):
 	    data = self.request.REQUEST
             if UserLogin.objects.filter(username=data["username"], password=data['password']).count() == 1:
                 ul = UserLogin.objects.get(username=data['username'], password=data['password'])
-		result =  json.dumps({"response":True, "iduser":ul.id})
+		result =  json.dumps({"response":True, "iduser":ul.userGame.id})
 	    else:
         	error.append("Login ou senha incorretos")
 	        result = json.dumps({"response":error})
@@ -217,7 +217,8 @@ class BattleRequisitionView(View):
             else:
                 _leg = Item.objects.get(pk=1)
 
-            challenged = randomOpponent(challenging)
+	    if challenged == 0:
+	        challenged = randomOpponent(challenging)
 
             if not challenged == "0":
                 rb = RequisitionBattle(challenging=challenging, challenged=challenged,
@@ -254,7 +255,7 @@ class BattleRequisitionGetView(View):
 	data = self.request.REQUEST
         try:
             reBattle = RequisitionBattle.objects.get(pk=self.kwargs['id_requisition'], status="W")
-            result = json.dumps({"requisition": json_repr(reBattle) })
+            result = json.dumps({"requisition": json_repr(reBattle), "challenging": reBattle.challenging.name })
         except RequisitionBattle.DoesNotExist:
             error.append("Nao foi possivel recuperar esta requisicao pois a batalha ja foi aceita")
 	    result = json.dumps({"response":error})
@@ -306,14 +307,14 @@ class BattleRequisitionConfirmView(View):
                     req.challenged_head = _challenged_head
                     req.save()
 
-                    processBattle(req)
+                    id_battle = processBattle(req)
 
                 else:
                     req.status = "C"
                     req.save()
                     msg = "O jogador %s nao aceitou sua solicitacao de batalha", req.challenged
                     createNotification(msg, req.challenging)
-                result = json.dumps({"response":True})
+                result = json.dumps({"response":True, "id_battle":id_battle})
 	    else:
 		result = json.dumps({"response": "requisition not found"})
         except:
@@ -341,7 +342,7 @@ class ShowBattleView(View):
             for i in logs:
                 _itens.append(dict(log=json_repr(i)))
 
-            result = json.dumps({"battle":json_repr(_battle), "details":json_repr(_req), "log":_itens })
+            result = json.dumps({"battle":json_repr(_battle), "details":json_repr(_req), "log":_itens, "hp_challenged":_req.challenged.hp, "hp_challenging":_req.challenging.hp })
 
         except:
             error.append("Nao foi possivel recuperar esta batalha")
@@ -926,7 +927,7 @@ def processBattle(req):
             _damage = 0
         log_battle = LogBattle(order=_round, player=_attacker,
                                 typeAttack=_type_attack, hit=_hit,
-                                damage=_damage, battle=_battle)
+                                damage=_damage, battle=_battle, playerLife=_defender.hp)
         log_battle.save()
 
         if _defender.hp <= 0:
@@ -959,5 +960,5 @@ def processBattle(req):
     msg = "Uma batalha aconteceu, veja o resultado!"
     createNotification(msg, req.challenging)
     createNotification(msg, req.challenged)
-
+    return _battle.id
 

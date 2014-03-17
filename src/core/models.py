@@ -137,6 +137,7 @@ class LogBattle(models.Model):
     hit = models.BooleanField(u'Hit')
     damage = models.FloatField(u'Damage')
     battle = models.ForeignKey(Battle, related_name="Battle")
+    playerLife = models.FloatField(u'PlayerLife')
 
     def __unicode__(self):
         if self.hit:
