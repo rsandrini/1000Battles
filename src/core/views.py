@@ -118,11 +118,11 @@ class DashboardView(View):
             user = UserGame.objects.get(pk=idUser)
             friends = Friend.objects.filter(user=user)
             _user = json_repr(user)
-            _friends = json.dumps([dict(friend=json_repr(pn.friend.name)) for pn in friends])
-            result = json.dumps({"user":_user, "friends":_friends })
+            _friends = json.dumps([dict(friend=pn.friend.name) for pn in friends])
+            result = {"user":_user, "friends":_friends }
         except:
             error.append("Ocorreu um erro ao buscar os dados")
-	    result = json.dumps({"response":error})
+	    result = {"response":error} #json.dumps({"response":error})
 
 	if 'callback' in data:
 	    return result
@@ -234,7 +234,6 @@ class BattleRequisitionView(View):
                 error.append("Nao foi possivel encontrar um oponente - fudeu")
 
         except:
-	    raise
             error.append("Ocorreu um erro -  tente novamente")
 
         if error:
@@ -342,7 +341,9 @@ class ShowBattleView(View):
             for i in logs:
                 _itens.append(dict(log=json_repr(i)))
 
-            result = json.dumps({"battle":json_repr(_battle), "details":json_repr(_req), "log":_itens, "hp_challenged":_req.challenged.hp, "hp_challenging":_req.challenging.hp })
+            result = json.dumps({"battle":json_repr(_battle), "details":json_repr(_req), "log":_itens,
+				"hp_challenged":_req.challenged.hp, "hp_challenging":_req.challenging.hp, 
+				"challenged_name":_req.challenged.name, "challeging_name":_req.challenging.name })
 
         except:
             error.append("Nao foi possivel recuperar esta batalha")
@@ -480,7 +481,9 @@ class AllUsersView(View):
 	data = self.request.REQUEST
         try:
             user = UserGame.objects.all()
-            _users = json.dumps([dict(user=json_repr(pn.name)) for pn in user])
+            #_users = json.dumps([dict(user=json_repr(pn.name)) for pn in user])
+	    _users = [dict(user=pn.name, id=pn.id, reputation=pn.reputation) for pn in user]
+
             result = json.dumps({"users":_users})
         except:
             error.append("Ocorreu um erro ao recuperar a lista de jogadores")
@@ -527,7 +530,7 @@ class FriendsView(View):
         try:
             user = UserGame.objects.get(pk=idUser)
             friends = Friend.objects.filter(user=user)
-            _friends = json.dumps([dict(friend=json_repr(pn.friend.name)) for pn in friends])
+            _friends = [dict(friend=json_repr(pn.friend.name)) for pn in friends]
             result = json.dumps({"friends":_friends})
         except:
             error.append("Ocorreu um erro ao recuperar seus amigos")
@@ -550,19 +553,23 @@ class FriendManagerView(View):
             _user = UserGame.objects.get(pk=self.kwargs['id'])
             add = data['action']
             if add == "True" or add == "true":
-                if Friend.objects.filter(user=_user, friend=_friend).count() == 1:
+                if Friend.objects.filter(user=_user, friend=_friend).count() == 0:
                     friend = Friend(user=_user, friend=_friend)
                     friend.save()
+	            result = json.dumps({"response":True })
+
                 else:
                     error.append("Amigo ja existe")
             else:
                 if Friend.objects.filter(user=_user, friend=_friend).count() == 1:
                     friend_get = Friend.objects.get(friend=_friend.pk, user=_user.pk)
                     friend_get.delete()
+	            result = json.dumps({"response":True })
+
                 else:
                     error.append("Amigo nao existe")
-
-            result = json.dumps({"response":True })
+	    if error:
+		result = error
 
         except:
             error.append("Erro ao processar solicitacao")
